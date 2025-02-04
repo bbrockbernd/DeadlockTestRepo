@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "2.0.10"
+    kotlin("jvm") version "2.1.10"
 }
 
 group = "org.example"
@@ -24,8 +24,8 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlinx:lincheck:2.35-SNAPSHOTT")
-    testImplementation(kotlin("test-junit"))
+//    testImplementation("org.jetbrains.kotlinx:lincheck:2.35-SNAPSHOTT")
+//    testImplementation(kotlin("test-junit"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 }
 
