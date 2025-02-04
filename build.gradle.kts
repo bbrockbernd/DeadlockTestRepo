@@ -24,8 +24,7 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-//    testImplementation("org.jetbrains.kotlinx:lincheck:2.35-SNAPSHOTT")
-//    testImplementation(kotlin("test-junit"))
+    testImplementation("org.jetbrains.kotlinx:lincheck:2.35-SNAPSHOTT")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 }
 
