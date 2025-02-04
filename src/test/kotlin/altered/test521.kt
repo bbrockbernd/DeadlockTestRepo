@@ -85,5 +85,5 @@ fun functionFive() {
 }
 
 class RunChecker521: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

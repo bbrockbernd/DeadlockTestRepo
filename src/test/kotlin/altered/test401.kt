@@ -100,5 +100,5 @@ fun CoroutineScope.launchSender3(channel: Channel<Int>) = launch {
 }
 
 class RunChecker401: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

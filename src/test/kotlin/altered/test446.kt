@@ -132,5 +132,5 @@ suspend fun sendDoubles(channel: Channel<Double>) {
 }
 
 class RunChecker446: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

@@ -87,5 +87,5 @@ suspend fun processData(channel: Channel<Int>) {
 }
 
 class RunChecker668: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

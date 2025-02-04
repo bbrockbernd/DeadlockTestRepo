@@ -83,5 +83,5 @@ suspend fun endTask(channel: Channel<Int>) {
 }
 
 class RunChecker615: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

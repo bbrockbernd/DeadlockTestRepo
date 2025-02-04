@@ -129,5 +129,5 @@ suspend fun relay(channel7: Channel<Int>, channel8: Channel<Int>) {
 }
 
 class RunChecker266: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

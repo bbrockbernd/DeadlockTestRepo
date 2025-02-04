@@ -82,5 +82,5 @@ fun helperFunction2(value: Int): Int {
 }
 
 class RunChecker693: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

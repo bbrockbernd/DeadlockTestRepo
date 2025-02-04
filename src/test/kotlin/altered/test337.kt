@@ -54,8 +54,8 @@ fun generateData(data: Int): Int {
 }
 
 suspend fun processData(channelExample: ChannelExample, data: Int) {
-    val.altered.ata = generateData(data)
-    channelExample.sendData.altered.ata)
+    val generatedData = generateData(data)
+    channelExample.sendData(generatedData)
     val receivedData = channelExample.receiveData()
     println("Processed data: $receivedData")
 }
@@ -85,5 +85,5 @@ fun main(): Unit= runBlocking {
 
 
 class RunChecker337: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

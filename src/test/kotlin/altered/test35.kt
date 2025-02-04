@@ -87,5 +87,5 @@ suspend fun main(): Unit {
 }
 
 class RunChecker35: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

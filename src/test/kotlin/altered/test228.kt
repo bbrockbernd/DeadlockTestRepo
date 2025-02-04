@@ -102,5 +102,5 @@ suspend fun coroutineF(ch6: Channel<Int>, ch7: Channel<Int>, ch1: Channel<Int>) 
 }
 
 class RunChecker228: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

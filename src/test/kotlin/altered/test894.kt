@@ -77,5 +77,5 @@ suspend fun closeChannels(channel1: Channel<Int>, channel2: Channel<Int>) {
 }
 
 class RunChecker894: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

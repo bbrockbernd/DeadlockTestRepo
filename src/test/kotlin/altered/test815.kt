@@ -69,5 +69,5 @@ suspend fun receiver(channel1: Channel<Int>, channel2: Channel<Int>) {
 }
 
 class RunChecker815: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

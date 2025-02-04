@@ -75,5 +75,5 @@ suspend fun coroutineFunction(
 }
 
 class RunChecker748: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

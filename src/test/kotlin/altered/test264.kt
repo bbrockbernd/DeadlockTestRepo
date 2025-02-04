@@ -79,5 +79,5 @@ fun coroutineFour(ch4: Channel<Int>, ch1: Channel<Int>, ch6: Channel<Int>) = run
 }
 
 class RunChecker264: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

@@ -96,5 +96,5 @@ suspend fun produceAndConsume(channel: Channel<Int>) = coroutineScope {
 }
 
 class RunChecker937: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

@@ -80,5 +80,5 @@ suspend fun processValue(value: Int) {
 }
 
 class RunChecker887: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

@@ -101,5 +101,5 @@ suspend fun receiveFromChannel3() {
 }
 
 class RunChecker197: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

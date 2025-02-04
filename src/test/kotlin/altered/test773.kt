@@ -85,5 +85,5 @@ suspend fun initiateCommunication(communicator: ChannelCommunicator) = coroutine
 }
 
 class RunChecker773: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

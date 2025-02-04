@@ -78,5 +78,5 @@ suspend fun additionalProcessing(value: Int) {
 }
 
 class RunChecker774: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

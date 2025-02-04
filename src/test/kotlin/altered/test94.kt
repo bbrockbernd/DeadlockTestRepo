@@ -71,5 +71,5 @@ suspend fun coroutineTwo(channel1: Channel<Int>, channel2: Channel<Int>, channel
 }
 
 class RunChecker94: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

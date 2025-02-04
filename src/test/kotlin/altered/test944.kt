@@ -71,5 +71,5 @@ fun CoroutineScope.launchDeadlock4(channelA: Channel<Int>, channelB: Channel<Int
 }
 
 class RunChecker944: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

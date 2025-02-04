@@ -115,5 +115,5 @@ suspend fun main(): Unit= coroutineScope {
 }
 
 class RunChecker16: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

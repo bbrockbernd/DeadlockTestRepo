@@ -87,5 +87,5 @@ suspend fun deadlock(channel: Channel<Int>) {
 }
 
 class RunChecker240: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

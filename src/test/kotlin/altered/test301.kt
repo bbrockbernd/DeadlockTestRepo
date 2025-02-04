@@ -110,5 +110,5 @@ suspend fun function8(data1: Int, data2: Int): String {
 }
 
 class RunChecker301: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

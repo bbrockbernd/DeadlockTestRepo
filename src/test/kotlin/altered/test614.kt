@@ -83,5 +83,5 @@ suspend fun coroutine4(classD: ClassD, classA: ClassA) {
 }
 
 class RunChecker614: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

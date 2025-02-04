@@ -72,5 +72,5 @@ suspend fun deadlockCoroutine(ch3: Channel<Int>, ch4: Channel<Int>) {
 }
 
 class RunChecker707: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

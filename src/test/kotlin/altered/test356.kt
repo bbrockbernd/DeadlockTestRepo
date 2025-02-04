@@ -83,5 +83,5 @@ fun function6(channel: Channel<Int>) = runBlocking {
 }
 
 class RunChecker356: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

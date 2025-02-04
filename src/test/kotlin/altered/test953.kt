@@ -81,5 +81,5 @@ suspend fun consumer(channel: Channel<Int>) {
 }
 
 class RunChecker953: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

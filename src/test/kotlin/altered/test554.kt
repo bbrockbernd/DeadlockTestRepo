@@ -91,5 +91,5 @@ fun functionB3(b1: Int, b2: Int): Int {
 }
 
 class RunChecker554: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

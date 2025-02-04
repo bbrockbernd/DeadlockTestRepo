@@ -105,5 +105,5 @@ suspend fun finalize(channel1: Channel<Int>, channel2: Channel<Int>) {
 }
 
 class RunChecker57: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

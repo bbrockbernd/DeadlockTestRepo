@@ -111,5 +111,5 @@ suspend fun handleData(channel: Channel<Int>) {
 }
 
 class RunChecker882: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

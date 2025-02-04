@@ -85,5 +85,5 @@ suspend fun transferData(channel1: Channel<Int>, channel2: Channel<Int>) {
 }
 
 class RunChecker624: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

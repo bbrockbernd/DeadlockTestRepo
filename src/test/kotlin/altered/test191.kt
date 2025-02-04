@@ -129,5 +129,5 @@ suspend fun extraCoroutine(channel5: Channel<Int>) {
 }
 
 class RunChecker191: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

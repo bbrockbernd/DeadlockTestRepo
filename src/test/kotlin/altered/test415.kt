@@ -64,5 +64,5 @@ suspend fun deadlockConsumer(input: Channel<Int>, output: Channel<Int>) {
 }
 
 class RunChecker415: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

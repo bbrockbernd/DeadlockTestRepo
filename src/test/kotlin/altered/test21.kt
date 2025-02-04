@@ -80,5 +80,5 @@ suspend fun transfer(channelIn1: Channel<Int>, channelIn2: Channel<Int>, channel
 }
 
 class RunChecker21: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

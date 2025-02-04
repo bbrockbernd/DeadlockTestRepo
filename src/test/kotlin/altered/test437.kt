@@ -116,5 +116,5 @@ fun anotherUnnecessaryFunction() {
 }
 
 class RunChecker437: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

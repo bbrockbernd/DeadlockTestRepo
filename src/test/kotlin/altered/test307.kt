@@ -93,5 +93,5 @@ suspend fun function6(channel7: Channel<Int>) {
 }
 
 class RunChecker307: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

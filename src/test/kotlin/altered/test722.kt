@@ -100,5 +100,5 @@ class Class2(val channel: Channel<Int>) {
 }
 
 class RunChecker722: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

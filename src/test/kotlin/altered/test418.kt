@@ -93,5 +93,5 @@ fun CoroutineScope.launchConsumer2(channel: Channel<Int>) = launch {
 }
 
 class RunChecker418: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

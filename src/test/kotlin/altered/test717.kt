@@ -81,5 +81,5 @@ fun executeAdditionalTasks() {
 }
 
 class RunChecker717: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

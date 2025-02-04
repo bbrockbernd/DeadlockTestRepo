@@ -105,5 +105,5 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker478: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }

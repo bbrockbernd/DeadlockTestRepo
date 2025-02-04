@@ -86,5 +86,5 @@ fun fourthFunction(input: Int) {
 }
 
 class RunChecker619: RunCheckerBase() {
-    override fun block() = main()
+    override fun block() = runBlocking { main() }
 }
