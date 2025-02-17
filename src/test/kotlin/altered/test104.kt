@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test104
+import org.example.altered.test104.RunChecker104.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -49,14 +51,14 @@ class DataProcessor(val channel1: Channel<Int>, val channel2: Channel<Int>) {
     }
 }
 
-fun sendData(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
-    launch { 
+fun sendData(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
+    launch(pool) { 
         for (i in 1..5) {
             channel1.send(i)
             println("Sent $i to channel1")
         }
     }
-    launch { 
+    launch(pool) { 
         for (i in 6..10) {
             channel2.send(i)
             println("Sent $i to channel2")
@@ -66,7 +68,7 @@ fun sendData(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
 
 suspend fun receiveData(channel: Channel<Int>, name: String) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (i in 1..5) {
                 val data = channel.receive()
                 println("$name received: $data")
@@ -77,7 +79,7 @@ suspend fun receiveData(channel: Channel<Int>, name: String) {
 
 suspend fun operation1(channel: Channel<Int>, name: String) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (i in 11..15) {
                 channel.send(i)
                 println("$name sent: $i")
@@ -88,7 +90,7 @@ suspend fun operation1(channel: Channel<Int>, name: String) {
 
 suspend fun operation2(channel: Channel<Int>, name: String) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (i in 16..20) {
                 val data = channel.receive()
                 println("$name received: $data")
@@ -97,19 +99,24 @@ suspend fun operation2(channel: Channel<Int>, name: String) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
 
     val processor = DataProcessor(channel1, channel2)
 
-    launch { sendData(channel1, channel2) }
-    launch { processor.processData() }
-    launch { receiveData(channel1, "Receiver1") }
-    launch { operation1(channel2, "Operation1") }
-    launch { operation2(channel1, "Operation2") }
+    launch(pool) { sendData(channel1, channel2) }
+    launch(pool) { processor.processData() }
+    launch(pool) { receiveData(channel1, "Receiver1") }
+    launch(pool) { operation1(channel2, "Operation1") }
+    launch(pool) { operation2(channel1, "Operation2") }
 }
 
 class RunChecker104: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

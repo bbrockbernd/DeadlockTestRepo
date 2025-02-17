@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test212
+import org.example.altered.test212.RunChecker212.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,64 +47,64 @@ class Data3(val value: Int)
 class Data4(val value: String)
 class Data5(val value: String)
 
-fun producer(channel1: Channel<Data1>, channel2: Channel<Data2>) = runBlocking {
+fun producer(channel1: Channel<Data1>, channel2: Channel<Data2>) = runBlocking(pool) {
     repeat(3) {
-        launch {
+        launch(pool) {
             val data = Data1(it)
             channel1.send(data)
         }
     }
     
     repeat(2) {
-        launch {
+        launch(pool) {
             val data = Data2(it)
             channel2.send(data)
         }
     }
 }
 
-fun consumer(channel1: Channel<Data1>, channel2: Channel<Data2>) = runBlocking {
+fun consumer(channel1: Channel<Data1>, channel2: Channel<Data2>) = runBlocking(pool) {
     repeat(2) {
-        launch {
+        launch(pool) {
             val data = channel1.receive()
             println("Data1 received: ${data.value}")
         }
     }
     
     repeat(2) {
-        launch {
+        launch(pool) {
             val data = channel2.receive()
             println("Data2 received: ${data.value}")
         }
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channel1 = Channel<Data1>()
     val channel2 = Channel<Data2>()
 
-    launch {
+    launch(pool) {
         producer(channel1, channel2)
     }
 
-    launch {
+    launch(pool) {
         consumer(channel1, channel2)
     }
 
     coroutineScope {
-        launch {
+        launch(pool) {
             delay(1000)
             val data = Data3(3)
             println("Data3 produced: ${data.value}")
         }
         
-        launch {
+        launch(pool) {
             delay(1000)
             val data = Data4("Hello")
             println("Data4 produced: ${data.value}")
         }
         
-        launch {
+        launch(pool) {
             delay(1000)
             val data = Data5("World")
             println("Data5 produced: ${data.value}")
@@ -111,5 +113,10 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker212: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

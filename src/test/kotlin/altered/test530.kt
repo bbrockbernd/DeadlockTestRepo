@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test530
+import org.example.altered.test530.RunChecker530.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -64,8 +66,8 @@ class ProducerB {
     }
 }
 
-fun processA(inputChannel: Channel<Int>, outputChannel: Channel<Int>) = runBlocking {
-    launch {
+fun processA(inputChannel: Channel<Int>, outputChannel: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (received in inputChannel) {
             outputChannel.send(received * 2)
         }
@@ -73,8 +75,8 @@ fun processA(inputChannel: Channel<Int>, outputChannel: Channel<Int>) = runBlock
     }
 }
 
-fun processB(inputChannel: Channel<Int>, outputChannel: Channel<Int>) = runBlocking {
-    launch {
+fun processB(inputChannel: Channel<Int>, outputChannel: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (received in inputChannel) {
             outputChannel.send(received + 2)
         }
@@ -82,24 +84,24 @@ fun processB(inputChannel: Channel<Int>, outputChannel: Channel<Int>) = runBlock
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val producerA = ProducerA()
     val producerB = ProducerB()
     val channelAtoB = Channel<Int>()
     val channelBtoA = Channel<Int>()
 
-    launch { producerA.produce() }
-    launch { producerB.produce() }
-    launch { processA(producerA.channel, channelAtoB) }
-    launch { processB(producerB.channel, channelBtoA) }
+    launch(pool) { producerA.produce() }
+    launch(pool) { producerB.produce() }
+    launch(pool) { processA(producerA.channel, channelAtoB) }
+    launch(pool) { processB(producerB.channel, channelBtoA) }
 
-    launch {
+    launch(pool) {
         for (received in channelAtoB) {
             println("Processed by A: $received")
         }
     }
 
-    launch {
+    launch(pool) {
         for (received in channelBtoA) {
             println("Processed by B: $received")
         }
@@ -107,5 +109,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker530: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

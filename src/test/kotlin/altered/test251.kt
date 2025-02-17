@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test251
+import org.example.altered.test251.RunChecker251.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -46,13 +48,13 @@ class Delta(val ch: Channel<Int>)
 class Epsilon(val ch: Channel<Int>)
 
 fun function1(ch: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         ch.send(1)
     }
 }
 
 fun function2(ch1: Channel<Int>, ch2: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         val data = ch1.receive()
         ch2.send(data + 1)
     }
@@ -68,22 +70,22 @@ suspend fun function4(ch1: Channel<Int>, ch2: Channel<Int>) {
 }
 
 fun function5(alpha: Alpha, beta: Beta) {
-    runBlocking {
-        launch { function1(alpha.ch) }
-        launch { function2(alpha.ch, beta.ch) }
+    runBlocking(pool) {
+        launch(pool) { function1(alpha.ch) }
+        launch(pool) { function2(alpha.ch, beta.ch) }
     }
 }
 
 fun function6(gamma: Gamma, delta: Delta) {
-    runBlocking {
-        launch { function3(gamma.ch) }
-        launch { function4(gamma.ch, delta.ch) }
+    runBlocking(pool) {
+        launch(pool) { function3(gamma.ch) }
+        launch(pool) { function4(gamma.ch, delta.ch) }
     }
 }
 
 fun function7(epsilon: Epsilon, ch: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val data = epsilon.ch.receive()
             ch.send(data + 3)
         }
@@ -91,8 +93,8 @@ fun function7(epsilon: Epsilon, ch: Channel<Int>) {
 }
 
 fun function8(beta: Beta, epsilon: Epsilon) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val data = beta.ch.receive()
             epsilon.ch.send(data + 4)
         }
@@ -120,12 +122,12 @@ fun main(): Unit{
     function7(epsilon, ch6)
     function8(beta, epsilon)
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val data1 = ch2.receive()
             ch7.send(data1 + 5)
         }
-        launch {
+        launch(pool) {
             val data2 = ch7.receive()
             ch8.send(data2 + 6)
         }
@@ -133,5 +135,10 @@ fun main(): Unit{
 }
 
 class RunChecker251: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

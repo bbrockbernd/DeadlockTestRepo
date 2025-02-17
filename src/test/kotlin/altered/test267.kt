@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test267
+import org.example.altered.test267.RunChecker267.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -48,7 +50,7 @@ class Processor(private val channel1: Channel<Int>, private val channel2: Channe
 
 fun job1(channel1: Channel<Int>, channel2: Channel<Int>) {
     repeat(2) {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             channel1.send(it)
         }
     }
@@ -56,7 +58,7 @@ fun job1(channel1: Channel<Int>, channel2: Channel<Int>) {
 
 fun job2(channel1: Channel<Int>, channel2: Channel<Int>) {
     repeat(2) {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             channel2.send(it * 2)
         }
     }
@@ -64,7 +66,7 @@ fun job2(channel1: Channel<Int>, channel2: Channel<Int>) {
 
 fun job3(channel3: Channel<Int>, channel4: Channel<Int>) {
     repeat(2) {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             val data = channel3.receive()
             channel4.send(data - 1)
         }
@@ -73,14 +75,14 @@ fun job3(channel3: Channel<Int>, channel4: Channel<Int>) {
 
 fun job4(channel3: Channel<Int>, channel4: Channel<Int>) {
     repeat(2) {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             val data = channel4.receive()
             channel3.send(data + 1)
         }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -90,14 +92,14 @@ fun main(): Unit= runBlocking {
     val processor2 = Processor(channel3, channel4)
 
     // Launching eight coroutines across different jobs and processors
-    launch { processor1.processData() }
-    launch { processor1.processData() }
-    launch { processor2.processData() }
-    launch { processor2.processData() }
-    launch { job1(channel1, channel2) }
-    launch { job2(channel1, channel2) }
-    launch { job3(channel3, channel4) }
-    launch { job4(channel3, channel4) }
+    launch(pool) { processor1.processData() }
+    launch(pool) { processor1.processData() }
+    launch(pool) { processor2.processData() }
+    launch(pool) { processor2.processData() }
+    launch(pool) { job1(channel1, channel2) }
+    launch(pool) { job2(channel1, channel2) }
+    launch(pool) { job3(channel3, channel4) }
+    launch(pool) { job4(channel3, channel4) }
 
     delay(2000) // Give coroutines some time to lead into a deadlock
 
@@ -105,5 +107,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker267: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

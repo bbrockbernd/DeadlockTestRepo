@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test505
+import org.example.altered.test505.RunChecker505.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,8 +47,8 @@ class ComponentB(val channel: Channel<Int>)
 class ComponentC(val channel: Channel<Int>)
 
 fun function1(componentA: ComponentA, componentB: ComponentB) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             // Trying to receive but no one sends initially causing potential deadlock
             val received = componentA.channel.receive()
             componentB.channel.send(received)
@@ -56,7 +58,7 @@ fun function1(componentA: ComponentA, componentB: ComponentB) {
 
 suspend fun function2(componentC: ComponentC, channel: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             // Waiting to send, could potentially deadlock because no one is receiving yet
             componentC.channel.send(42)
         }
@@ -66,13 +68,13 @@ suspend fun function2(componentC: ComponentC, channel: Channel<Int>) {
 }
 
 fun function3(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             // Two coroutines depend on each other for values causing deadlock
             val received1 = channel1.receive()
             channel2.send(received1)
         }
-        launch {
+        launch(pool) {
             val received2 = channel2.receive()
             channel1.send(received2)
         }
@@ -90,8 +92,8 @@ fun function4() {
 
     function1(componentA, componentB)
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             // Potential deadlock if function2 channel receive waits for send which is also waiting
             function2(componentC, channel3)
         }
@@ -105,5 +107,10 @@ fun main(): Unit{
 }
 
 class RunChecker505: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

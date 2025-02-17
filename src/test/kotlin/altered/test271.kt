@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test271
+import org.example.altered.test271.RunChecker271.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,50 +47,55 @@ class ChannelManager {
     val ch3 = Channel<Int>()
 }
 
-fun produceToCh1(channelManager: ChannelManager) = runBlocking {
-    launch {
+fun produceToCh1(channelManager: ChannelManager) = runBlocking(pool) {
+    launch(pool) {
         channelManager.ch1.send(1)
         channelManager.ch1.send(2)
     }
 }
 
-fun produceToCh2(channelManager: ChannelManager) = runBlocking {
-    launch {
+fun produceToCh2(channelManager: ChannelManager) = runBlocking(pool) {
+    launch(pool) {
         val value = channelManager.ch1.receive()
         channelManager.ch2.send(value * 2)
     }
 }
 
-fun produceToCh3(channelManager: ChannelManager) = runBlocking {
-    launch {
+fun produceToCh3(channelManager: ChannelManager) = runBlocking(pool) {
+    launch(pool) {
         val value = channelManager.ch2.receive()
         channelManager.ch3.send(value + 3)
     }
 }
 
-fun consumeCh3(channelManager: ChannelManager) = runBlocking {
-    launch {
+fun consumeCh3(channelManager: ChannelManager) = runBlocking(pool) {
+    launch(pool) {
         val value = channelManager.ch3.receive()
         println("Received from ch3: $value")
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channelManager = ChannelManager()
     
-    launch { produceToCh1(channelManager) }
-    launch { produceToCh2(channelManager) }
-    launch { produceToCh3(channelManager) }
-    launch { consumeCh3(channelManager) }
+    launch(pool) { produceToCh1(channelManager) }
+    launch(pool) { produceToCh2(channelManager) }
+    launch(pool) { produceToCh3(channelManager) }
+    launch(pool) { consumeCh3(channelManager) }
     
-    launch { produceToCh1(channelManager) }
-    launch { produceToCh2(channelManager) }
-    launch { produceToCh3(channelManager) }
-    launch { consumeCh3(channelManager) }
+    launch(pool) { produceToCh1(channelManager) }
+    launch(pool) { produceToCh2(channelManager) }
+    launch(pool) { produceToCh3(channelManager) }
+    launch(pool) { consumeCh3(channelManager) }
     
     delay(5000) // Give some time to see the deadlock
 }
 
 class RunChecker271: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

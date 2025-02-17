@@ -35,13 +35,15 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test245
+import org.example.altered.test245.RunChecker245.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class Processor {
     val channel1 = Channel<Int>(Channel.BUFFERED)
-    fun process(input: Int) = runBlocking {
+    fun process(input: Int) = runBlocking(pool) {
         channel1.send(input)
     }
 }
@@ -77,7 +79,7 @@ class Logger {
 
 class Transformer {
     val channel3 = Channel<Double>(Channel.BUFFERED)
-    fun transform(input: Double) = runBlocking {
+    fun transform(input: Double) = runBlocking(pool) {
         channel3.send(input * 2)
     }
 }
@@ -103,7 +105,7 @@ class FinalProcessor {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val processor = Processor()
     val reader = Reader(processor.channel1)
     val writerChannel = Channel<Int>(Channel.BUFFERED)
@@ -113,9 +115,9 @@ fun main(): Unit= runBlocking {
     val aggregator = Aggregator()
     val finalProcessor = FinalProcessor()
 
-    launch { reader.readAndPrint() }
-    launch { logger.logReader() }
-    launch { finalProcessor.finalProcessorReader() }
+    launch(pool) { reader.readAndPrint() }
+    launch(pool) { logger.logReader() }
+    launch(pool) { finalProcessor.finalProcessorReader() }
 
     processor.process(42)
     logger.log("Processing: 42")
@@ -132,5 +134,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker245: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

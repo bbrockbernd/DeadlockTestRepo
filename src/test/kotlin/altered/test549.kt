@@ -36,11 +36,13 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test549
+import org.example.altered.test549.RunChecker549.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 
 class MyClass(val ch1: Channel<Int>, val ch2: Channel<String>) {
     suspend fun functionA() {
@@ -52,36 +54,36 @@ class MyClass(val ch1: Channel<Int>, val ch2: Channel<String>) {
     }
 }
 
-fun functionC(ch3: Channel<Int>) = runBlocking {
+fun functionC(ch3: Channel<Int>) = runBlocking(pool) {
     coroutineScope {
-        launch {
+        launch(pool) {
             ch3.send(2)
         }
     }
 }
 
-fun functionD(ch4: Channel<String>) = runBlocking {
+fun functionD(ch4: Channel<String>) = runBlocking(pool) {
     coroutineScope {
-        launch {
+        launch(pool) {
             ch4.send("World")
         }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val myClass = MyClass(Channel(), Channel())
     val ch3 = Channel<Int>()
     val ch4 = Channel<String>()
 
     coroutineScope {
-        launch {
+        launch(pool) {
             myClass.functionA()
             myClass.functionB()
             functionC(ch3)
             functionD(ch4)
         }
 
-        launch {
+        launch(pool) {
             val received1 = myClass.ch1.receive()
             val received2 = myClass.ch2.receive()
             val received3 = ch3.receive()
@@ -92,5 +94,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker549: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

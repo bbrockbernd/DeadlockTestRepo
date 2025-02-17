@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test135
+import org.example.altered.test135.RunChecker135.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -46,7 +48,7 @@ class ClassD(val channel: Channel<Int>)
 class ClassE(val channel: Channel<Int>)
 
 fun function1(channel1: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         repeat(5) {
             channel1.send(it)
         }
@@ -56,7 +58,7 @@ fun function1(channel1: Channel<Int>) {
 
 suspend fun function2(channel2: Channel<Int>, channel3: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (i in channel2) {
                 channel3.send(i * 2)
             }
@@ -66,7 +68,7 @@ suspend fun function2(channel2: Channel<Int>, channel3: Channel<Int>) {
 }
 
 fun function3(channel4: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 1..5) {
             channel4.send(i * 3)
         }
@@ -76,7 +78,7 @@ fun function3(channel4: Channel<Int>) {
 
 suspend fun function4(channel5: Channel<Int>, channel6: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (i in channel5) {
                 channel6.send(i + 4)
             }
@@ -86,7 +88,7 @@ suspend fun function4(channel5: Channel<Int>, channel6: Channel<Int>) {
 }
 
 fun function5(channel7: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 1..5) {
             channel7.send(i * 5)
         }
@@ -94,7 +96,7 @@ fun function5(channel7: Channel<Int>) {
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -113,21 +115,21 @@ fun main(): Unit = runBlocking {
     function3(classD.channel)
     function5(classE.channel)
 
-    launch {
+    launch(pool) {
         function2(classB.channel, classC.channel)
     }
 
-    launch {
+    launch(pool) {
         function4(classC.channel, classD.channel)
     }
 
-    launch {
+    launch(pool) {
         for (i in classD.channel) {
             println("Received from channel4: $i")
         }
     }
 
-    launch {
+    launch(pool) {
         for (i in channel7) {
             println("Received from channel7: $i")
         }
@@ -135,5 +137,10 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker135: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

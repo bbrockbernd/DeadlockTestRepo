@@ -36,13 +36,15 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test768
+import org.example.altered.test768.RunChecker768.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class Producer {
     fun produce(channel: Channel<Int>) {
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(pool).launch(pool) {
             (1..5).forEach {
                 channel.send(it)
             }
@@ -53,7 +55,7 @@ class Producer {
 
 class ConsumerA {
     fun consume(channel: Channel<Int>, otherChannel: Channel<Int>) {
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(pool).launch(pool) {
             for (value in channel) {
                 otherChannel.send(value * 2)
             }
@@ -64,7 +66,7 @@ class ConsumerA {
 
 class ConsumerB {
     fun consume(channel: Channel<Int>) {
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(pool).launch(pool) {
             for (value in channel) {
                 println("Received: $value")
             }
@@ -85,11 +87,16 @@ suspend fun process() {
     consumerB.consume(channel2)
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     process()
     delay(1000L) // Give some time for all operations to complete
 }
 
 class RunChecker768: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

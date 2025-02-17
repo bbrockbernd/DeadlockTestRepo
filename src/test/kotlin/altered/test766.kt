@@ -36,41 +36,43 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test766
+import org.example.altered.test766.RunChecker766.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun function1(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
+fun function1(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
     channel1.send(1)  // Waits for receiver
     val received = channel2.receive() 
     println("Function1 received: $received")
 }
 
-fun function2(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking {
+fun function2(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking(pool) {
     val received = channel2.receive()
     println("Function2 received: $received")
     channel3.send(2)  // Waits for receiver
 }
 
-fun function3(channel3: Channel<Int>, channel4: Channel<Int>) = runBlocking {
+fun function3(channel3: Channel<Int>, channel4: Channel<Int>) = runBlocking(pool) {
     val received = channel3.receive()
     println("Function3 received: $received")
     channel4.send(3)  // Waits for receiver
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
     val channel4 = Channel<Int>()
 
-    launch {
+    launch(pool) {
         function1(channel1, channel2)
     }
-    launch {
+    launch(pool) {
         function2(channel2, channel3)
     }
-    launch {
+    launch(pool) {
         function3(channel3, channel4)
     }
 
@@ -79,5 +81,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker766: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

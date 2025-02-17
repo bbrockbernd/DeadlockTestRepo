@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test962
+import org.example.altered.test962.RunChecker962.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -46,8 +48,8 @@ class DeadlockExample {
 }
 
 fun function1(example: DeadlockExample) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             example.channel1.send(1)
             println("Sent 1 to channel1")
             val received = example.channel2.receive()
@@ -57,8 +59,8 @@ fun function1(example: DeadlockExample) {
 }
 
 fun function2(example: DeadlockExample) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val received = example.channel1.receive()
             println("Received $received from channel1")
             example.channel2.send(2)
@@ -69,7 +71,7 @@ fun function2(example: DeadlockExample) {
 
 suspend fun function3(example: DeadlockExample) {
     coroutineScope {
-        launch {
+        launch(pool) {
             val received = example.channel1.receive()
             println("Coroutine 1 received $received from channel1")
         }
@@ -78,7 +80,7 @@ suspend fun function3(example: DeadlockExample) {
 
 suspend fun function4(example: DeadlockExample) {
     coroutineScope {
-        launch {
+        launch(pool) {
             example.channel1.send(3)
             println("Coroutine 2 sent 3 to channel1")
         }
@@ -89,12 +91,17 @@ fun main(): Unit{
     val example = DeadlockExample()
     function1(example) // This initiates a send on channel1 and waits to receive on channel2
     function2(example) // This initiates a receive on channel1 and sends on channel2
-    runBlocking {
-        launch { function3(example) } // This will receive from channel1
-        launch { function4(example) } // This will send to channel1
+    runBlocking(pool) {
+        launch(pool) { function3(example) } // This will receive from channel1
+        launch(pool) { function4(example) } // This will send to channel1
     }
 }
 
 class RunChecker962: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

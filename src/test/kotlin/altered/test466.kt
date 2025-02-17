@@ -35,12 +35,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test466
+import org.example.altered.test466.RunChecker466.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun firstFunction(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
-    launch {
+fun firstFunction(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..5) {
             val result = i * i
             channel1.send(result)
@@ -48,7 +50,7 @@ fun firstFunction(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking 
         channel1.close()
     }
 
-    launch {
+    launch(pool) {
         for (value in channel1) {
             val result = value + 1
             channel2.send(result)
@@ -57,8 +59,8 @@ fun firstFunction(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking 
     }
 }
 
-fun secondFunction(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking {
-    launch {
+fun secondFunction(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (value in channel2) {
             val result = value * 2
             channel3.send(result)
@@ -66,24 +68,29 @@ fun secondFunction(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking
         channel3.close()
     }
 
-    launch {
+    launch(pool) {
         for (value in channel3) {
             println("Final result: $value")
         }
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
 
-    launch { firstFunction(channel1, channel2) }
-    launch { secondFunction(channel2, channel3) }
+    launch(pool) { firstFunction(channel1, channel2) }
+    launch(pool) { secondFunction(channel2, channel3) }
 
     delay(2000L)  // Allow some time for the coroutines to complete
 }
 
 class RunChecker466: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test184
+import org.example.altered.test184.RunChecker184.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -80,10 +82,10 @@ class Coordinator(
     val consumerB: ConsumerB
 ) {
     suspend fun coordinate() = coroutineScope {
-        launch { producerA.produceA() }
-        launch { producerB.produceB() }
-        launch { consumerA.consumeA() }
-        launch { consumerB.consumeB() }
+        launch(pool) { producerA.produceA() }
+        launch(pool) { producerB.produceB() }
+        launch(pool) { consumerA.consumeA() }
+        launch(pool) { consumerB.consumeB() }
     }
 }
 
@@ -102,10 +104,10 @@ suspend fun orchestrateChannels() = coroutineScope {
     val consumerA = ConsumerA(channel5, channel6)
     val consumerB = ConsumerB(channel7, channel8)
 
-    launch { channelBridge(channel1, channel5) }
-    launch { channelBridge(channel2, channel6) }
-    launch { channelBridge(channel3, channel7) }
-    launch { channelBridge(channel4, channel8) }
+    launch(pool) { channelBridge(channel1, channel5) }
+    launch(pool) { channelBridge(channel2, channel6) }
+    launch(pool) { channelBridge(channel3, channel7) }
+    launch(pool) { channelBridge(channel4, channel8) }
 
     val coordinator = Coordinator(producerA, producerB, consumerA, consumerB)
     coordinator.coordinate()
@@ -117,10 +119,15 @@ suspend fun channelBridge(input: Channel<Int>, output: Channel<Int>) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     orchestrateChannels()
 }
 
 class RunChecker184: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

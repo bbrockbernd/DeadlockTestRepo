@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test43
+import org.example.altered.test43.RunChecker43.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -44,23 +46,23 @@ class ExampleClass {
     val channel2 = Channel<Int>()
 
     fun function1() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 function2()
             }
-            launch {
+            launch(pool) {
                 function3()
             }
         }
     }
 
     fun function2() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val received = channel1.receive()
                 channel2.send(received)
             }
-            launch {
+            launch(pool) {
                 val num = 5
                 channel1.send(num)
             }
@@ -68,8 +70,8 @@ class ExampleClass {
     }
 
     fun function3() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val received = channel2.receive()
                 println("Received in function3: $received")
                 function4()
@@ -78,8 +80,8 @@ class ExampleClass {
     }
 
     fun function4() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val value = 10
                 channel1.send(value)
                 val received = channel1.receive()
@@ -95,5 +97,10 @@ fun main(): Unit{
 }
 
 class RunChecker43: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

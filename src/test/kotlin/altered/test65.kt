@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test65
+import org.example.altered.test65.RunChecker65.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -80,15 +82,15 @@ class Delta(val channel1: Channel<Int>, val channel2: Channel<Int>) {
 }
 
 fun process(alpha: Alpha, beta: Beta, gamma: Gamma, delta: Delta) {
-    runBlocking {
-        val cor1 = launch {
+    runBlocking(pool) {
+        val cor1 = launch(pool) {
             val aValue = 10
             alpha.sendToBeta(aValue)
             val dValue = delta.receiveFromGamma()
             println("Alpha received from Delta: $dValue")
         }
 
-        val cor2 = launch {
+        val cor2 = launch(pool) {
             val bValue = beta.receiveFromAlpha()
             beta.sendToGamma(bValue * 2)
             val gValue = gamma.receiveFromBeta() * 3
@@ -120,5 +122,10 @@ fun main(): Unit{
 }
 
 class RunChecker65: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test226
+import org.example.altered.test226.RunChecker226.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -47,13 +49,13 @@ class Task4(val channel: Channel<Int>)
 class Task5(val channel: Channel<Int>)
 
 // Functions operating on channels and demonstrating potential deadlock
-fun produceData(channel: Channel<Int>) = runBlocking {
+fun produceData(channel: Channel<Int>) = runBlocking(pool) {
     repeat(5) {
         channel.send(it)
     }
 }
 
-fun consumeData(channel: Channel<Int>): Int = runBlocking {
+fun consumeData(channel: Channel<Int>): Int = runBlocking(pool) {
     var result = 0
     repeat(5) {
         result += channel.receive()
@@ -61,19 +63,19 @@ fun consumeData(channel: Channel<Int>): Int = runBlocking {
     result
 }
 
-fun coroutineA(channel: Channel<Int>) = runBlocking {
-    launch {
+fun coroutineA(channel: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         produceData(channel)
     }
 }
 
-fun coroutineB(channel: Channel<Int>) = runBlocking {
-    launch {
+fun coroutineB(channel: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         consumeData(channel)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel = Channel<Int>() // Unbuffered channel
 
     val task1 = Task1(channel)
@@ -83,30 +85,35 @@ fun main(): Unit= runBlocking {
     val task5 = Task5(channel)
 
     // Launching coroutines that will create a deadlock
-    launch {
+    launch(pool) {
         coroutineA(task1.channel)
     }
-    launch {
+    launch(pool) {
         coroutineB(task2.channel)
     }
 
     // The following sections use the same unbuffered channel leading to potential deadlocks
-    launch {
+    launch(pool) {
         coroutineA(task3.channel)
     }
-    launch {
+    launch(pool) {
         coroutineB(task4.channel)
     }
     coroutineScope {
-        launch {
+        launch(pool) {
             coroutineA(task5.channel)
         }
-        launch {
+        launch(pool) {
             coroutineB(task1.channel)
         }
     }
 }
 
 class RunChecker226: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

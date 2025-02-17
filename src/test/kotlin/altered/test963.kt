@@ -36,12 +36,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test963
+import org.example.altered.test963.RunChecker963.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
 fun producer1(channel: SendChannel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 1..4) {
             channel.send(i)
         }
@@ -50,7 +52,7 @@ fun producer1(channel: SendChannel<Int>) {
 }
 
 fun producer2(channel: SendChannel<String>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         val messages = listOf("A", "B", "C", "D")
         for (msg in messages) {
             channel.send(msg)
@@ -60,7 +62,7 @@ fun producer2(channel: SendChannel<String>) {
 }
 
 fun consumer1(channel: ReceiveChannel<Int>, nextChannel: SendChannel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (value in channel) {
             nextChannel.send(value * 2)
         }
@@ -69,7 +71,7 @@ fun consumer1(channel: ReceiveChannel<Int>, nextChannel: SendChannel<Int>) {
 }
 
 fun consumer2(channel: ReceiveChannel<String>, nextChannel: SendChannel<String>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (msg in channel) {
             nextChannel.send(msg + msg)
         }
@@ -77,7 +79,7 @@ fun consumer2(channel: ReceiveChannel<String>, nextChannel: SendChannel<String>)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<String>()
     val channel3 = Channel<Int>()
@@ -88,13 +90,13 @@ fun main(): Unit= runBlocking {
     consumer1(channel1, channel3)
     consumer2(channel2, channel4)
 
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (item in channel3) {
             println("Channel 3 received: $item")
         }
     }
 
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (msg in channel4) {
             println("Channel 4 received: $msg")
         }
@@ -104,5 +106,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker963: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

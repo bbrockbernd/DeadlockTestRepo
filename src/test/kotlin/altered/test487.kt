@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test487
+import org.example.altered.test487.RunChecker487.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -47,7 +49,7 @@ class DataProcessor(val inputChannel: Channel<Int>, val outputChannel: Channel<S
     }
 }
 
-fun produceNumbers(channel: Channel<Int>) = GlobalScope.launch {
+fun produceNumbers(channel: Channel<Int>) = GlobalScope.launch(pool) {
     for (i in 1..5) {
         channel.send(i)
         delay(100)
@@ -55,13 +57,13 @@ fun produceNumbers(channel: Channel<Int>) = GlobalScope.launch {
     channel.close()
 }
 
-fun consumeStrings(channel: Channel<String>) = GlobalScope.launch {
+fun consumeStrings(channel: Channel<String>) = GlobalScope.launch(pool) {
     for (message in channel) {
         println(message)
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<String>()
     val channel3 = Channel<Int>()
@@ -74,20 +76,25 @@ fun main(): Unit = runBlocking {
     val processor3 = DataProcessor(channel5, channel6)
 
     coroutineScope {
-        launch { processor1.process() }
-        launch { processor2.process() }
-        launch { processor3.process() }
+        launch(pool) { processor1.process() }
+        launch(pool) { processor2.process() }
+        launch(pool) { processor3.process() }
 
-        launch { produceNumbers(channel1) }
-        launch { produceNumbers(channel3) }
-        launch { produceNumbers(channel5) }
+        launch(pool) { produceNumbers(channel1) }
+        launch(pool) { produceNumbers(channel3) }
+        launch(pool) { produceNumbers(channel5) }
 
-        launch { consumeStrings(channel2) }
-        launch { consumeStrings(channel4) }
-        launch { consumeStrings(channel6) }
+        launch(pool) { consumeStrings(channel2) }
+        launch(pool) { consumeStrings(channel4) }
+        launch(pool) { consumeStrings(channel6) }
     }
 }
 
 class RunChecker487: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test42
+import org.example.altered.test42.RunChecker42.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -43,14 +45,14 @@ class DataProcessor {
     val ch1 = Channel<Int>()
     val ch2 = Channel<Int>()
 
-    fun produceData() = runBlocking {
-        launch { ch1.send(1) }
-        launch { ch2.send(2) }
+    fun produceData() = runBlocking(pool) {
+        launch(pool) { ch1.send(1) }
+        launch(pool) { ch2.send(2) }
     }
 
-    fun consumeData() = runBlocking {
-        launch { println(ch1.receive()) }
-        launch { println(ch2.receive()) }
+    fun consumeData() = runBlocking(pool) {
+        launch(pool) { println(ch1.receive()) }
+        launch(pool) { println(ch2.receive()) }
     }
 }
 
@@ -59,16 +61,16 @@ class DataManager {
     val ch4 = Channel<Double>(1)
 
     suspend fun processString() = coroutineScope {
-        launch { ch3.send("Hello") }
+        launch(pool) { ch3.send("Hello") }
     }
 
     suspend fun processDouble() = coroutineScope {
-        launch { ch4.send(5.0) }
+        launch(pool) { ch4.send(5.0) }
     }
 
-    fun displayData() = runBlocking {
-        launch { println(ch3.receive()) }
-        launch { println(ch4.receive()) }
+    fun displayData() = runBlocking(pool) {
+        launch(pool) { println(ch3.receive()) }
+        launch(pool) { println(ch4.receive()) }
     }
 }
 
@@ -77,16 +79,16 @@ class Coordinator {
     val ch6 = Channel<Char>()
     val ch7 = Channel<Long>()
 
-    fun coordinateTasks() = runBlocking {
-        launch { ch5.send(true) }
-        launch { ch6.send('A') }
-        launch { ch7.send(100L) }
+    fun coordinateTasks() = runBlocking(pool) {
+        launch(pool) { ch5.send(true) }
+        launch(pool) { ch6.send('A') }
+        launch(pool) { ch7.send(100L) }
     }
 
-    fun completeTasks() = runBlocking {
-        launch { println(ch5.receive()) }
-        launch { println(ch6.receive()) }
-        launch { println(ch7.receive()) }
+    fun completeTasks() = runBlocking(pool) {
+        launch(pool) { println(ch5.receive()) }
+        launch(pool) { println(ch6.receive()) }
+        launch(pool) { println(ch7.receive()) }
     }
 }
 
@@ -98,7 +100,7 @@ fun main(): Unit{
     dataProcessor.produceData()
     dataProcessor.consumeData()
 
-    runBlocking {
+    runBlocking(pool) {
         dataManager.processString()
         dataManager.processDouble()
     }
@@ -109,5 +111,10 @@ fun main(): Unit{
 }
 
 class RunChecker42: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

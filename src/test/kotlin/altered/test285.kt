@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test285
+import org.example.altered.test285.RunChecker285.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -53,21 +55,21 @@ class Sender2(val ch3: Channel<Int>, val ch4: Channel<Int>) {
     }
 }
 
-fun receiveFromChannel(ch: Channel<Int>): Int = runBlocking {
+fun receiveFromChannel(ch: Channel<Int>): Int = runBlocking(pool) {
     ch.receive()
 }
 
 suspend fun processChannels(ch5: Channel<Int>, ch6: Channel<Int>, ch7: Channel<Int>) = coroutineScope {
-    val result1 = async { receiveFromChannel(ch5) }
-    val result2 = async { receiveFromChannel(ch6) }
-    val result3 = async { receiveFromChannel(ch7) }
+    val result1 = async(pool) { receiveFromChannel(ch5) }
+    val result2 = async(pool) { receiveFromChannel(ch6) }
+    val result3 = async(pool) { receiveFromChannel(ch7) }
 
     println("Result1: ${result1.await()}")
     println("Result2: ${result2.await()}")
     println("Result3: ${result3.await()}")
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val ch1 = Channel<Int>()
     val ch2 = Channel<Int>()
     val ch3 = Channel<Int>()
@@ -79,33 +81,38 @@ fun main(): Unit= runBlocking {
     val sender1 = Sender1(ch1, ch2)
     val sender2 = Sender2(ch3, ch4)
 
-    launch {
+    launch(pool) {
         sender1.send()
     }
 
-    launch {
+    launch(pool) {
         sender2.send()
     }
 
-    launch {
+    launch(pool) {
         val received1 = receiveFromChannel(ch1)
         val received2 = receiveFromChannel(ch2)
         println("Received from Sender1: $received1, $received2")
         ch5.send(received1 + received2)
     }
 
-    launch {
+    launch(pool) {
         val received3 = receiveFromChannel(ch3)
         val received4 = receiveFromChannel(ch4)
         println("Received from Sender2: $received3, $received4")
         ch6.send(received3 + received4)
     }
 
-    launch {
+    launch(pool) {
         processChannels(ch5, ch6, ch7)
     }
 }
 
 class RunChecker285: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

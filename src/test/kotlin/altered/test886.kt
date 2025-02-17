@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test886
+import org.example.altered.test886.RunChecker886.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -48,8 +50,8 @@ class DeadlockExample {
     private val channel5 = Channel<Int>()
 
     fun function1() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 channel1.send(1)
                 channel2.receive()
             }
@@ -57,8 +59,8 @@ class DeadlockExample {
     }
 
     fun function2() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 channel2.send(2)
                 channel3.receive()
             }
@@ -66,8 +68,8 @@ class DeadlockExample {
     }
 
     fun function3() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 channel3.send(3)
                 channel4.receive()
             }
@@ -75,8 +77,8 @@ class DeadlockExample {
     }
 
     fun function4() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 channel4.send(4)
                 channel5.receive()
             }
@@ -84,8 +86,8 @@ class DeadlockExample {
     }
 
     fun function5() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 channel5.send(5)
                 channel1.receive()
             }
@@ -95,15 +97,20 @@ class DeadlockExample {
 
 fun main(): Unit{
     val deadlockExample = DeadlockExample()
-    runBlocking {
-        launch { deadlockExample.function1() }
-        launch { deadlockExample.function2() }
-        launch { deadlockExample.function3() }
-        launch { deadlockExample.function4() }
-        launch { deadlockExample.function5() }
+    runBlocking(pool) {
+        launch(pool) { deadlockExample.function1() }
+        launch(pool) { deadlockExample.function2() }
+        launch(pool) { deadlockExample.function3() }
+        launch(pool) { deadlockExample.function4() }
+        launch(pool) { deadlockExample.function5() }
     }
 }
 
 class RunChecker886: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

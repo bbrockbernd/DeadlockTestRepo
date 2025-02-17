@@ -35,13 +35,15 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test252
+import org.example.altered.test252.RunChecker252.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
 fun func1(channel1: SendChannel<Int>, channel2: ReceiveChannel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.send(1)
             delay(100)
             channel2.receive()
@@ -50,8 +52,8 @@ fun func1(channel1: SendChannel<Int>, channel2: ReceiveChannel<Int>) {
 }
 
 fun func2(channel1: ReceiveChannel<Int>, channel2: SendChannel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.receive()
             delay(100)
             channel2.send(2)
@@ -60,8 +62,8 @@ fun func2(channel1: ReceiveChannel<Int>, channel2: SendChannel<Int>) {
 }
 
 fun func3(channel1: SendChannel<Int>, channel2: ReceiveChannel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.send(3)
             delay(100)
             channel2.receive()
@@ -70,8 +72,8 @@ fun func3(channel1: SendChannel<Int>, channel2: ReceiveChannel<Int>) {
 }
 
 fun func4(channel1: ReceiveChannel<Int>, channel2: SendChannel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.receive()
             delay(100)
             channel2.send(4)
@@ -80,8 +82,8 @@ fun func4(channel1: ReceiveChannel<Int>, channel2: SendChannel<Int>) {
 }
 
 fun func5(channel1: SendChannel<Int>, channel2: ReceiveChannel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.send(5)
             delay(100)
             channel2.receive()
@@ -90,8 +92,8 @@ fun func5(channel1: SendChannel<Int>, channel2: ReceiveChannel<Int>) {
 }
 
 fun func6(channel1: ReceiveChannel<Int>, channel2: SendChannel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.receive()
             delay(100)
             channel2.send(6)
@@ -100,8 +102,8 @@ fun func6(channel1: ReceiveChannel<Int>, channel2: SendChannel<Int>) {
 }
 
 fun func7(channel1: SendChannel<Int>, channel2: ReceiveChannel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.send(7)
             delay(100)
             channel2.receive()
@@ -110,8 +112,8 @@ fun func7(channel1: SendChannel<Int>, channel2: ReceiveChannel<Int>) {
 }
 
 fun func8(channel1: ReceiveChannel<Int>, channel2: SendChannel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.receive()
             delay(100)
             channel2.send(8)
@@ -134,5 +136,10 @@ fun main(): Unit{
 }
 
 class RunChecker252: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

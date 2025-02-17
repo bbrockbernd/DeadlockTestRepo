@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test484
+import org.example.altered.test484.RunChecker484.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -75,7 +77,7 @@ suspend fun collector(channelCollector1: Channel<Int>, channelCollector2: Channe
     return sum
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -90,17 +92,22 @@ fun main(): Unit= runBlocking {
     val consumer3 = Consumer(channel3, channelCollector2)
     val consumer4 = Consumer(channel4, channelCollector2)
 
-    launch { producer1.produce() }
-    launch { producer2.produce() }
-    launch { consumer1.consume() }
-    launch { consumer2.consume() }
-    launch { consumer3.consume() }
-    launch { consumer4.consume() }
+    launch(pool) { producer1.produce() }
+    launch(pool) { producer2.produce() }
+    launch(pool) { consumer1.consume() }
+    launch(pool) { consumer2.consume() }
+    launch(pool) { consumer3.consume() }
+    launch(pool) { consumer4.consume() }
 
     val result = collector(channelCollector1, channelCollector2)
     println("Collected sum: $result")
 }
 
 class RunChecker484: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

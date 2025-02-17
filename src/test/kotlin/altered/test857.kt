@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test857
+import org.example.altered.test857.RunChecker857.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -78,18 +80,18 @@ suspend fun coordinateCommunication(sender: Sender, receiver: Receiver, processo
     sendData(sender, data)
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val senders = listOf(Sender(channelA), Sender(channelB), Sender(channelC), Sender(channelD), Sender(channelE))
     val receivers = listOf(Receiver(channelA), Receiver(channelB), Receiver(channelC), Receiver(channelD), Receiver(channelE))
     val processors = listOf(Processor(), Processor(), Processor(), Processor(), Processor())
 
-    launch {
+    launch(pool) {
         senders.indices.forEach { idx ->
             coordinateCommunication(senders[idx], receivers[idx], processors[idx])
         }
     }
 
-    launch {
+    launch(pool) {
         senders.zip(receivers).forEach { (sender, receiver) ->
             sendData(sender, "Test Data")
             println(receiver.receive())
@@ -98,5 +100,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker857: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

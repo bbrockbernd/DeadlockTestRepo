@@ -35,12 +35,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test132
+import org.example.altered.test132.RunChecker132.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
-fun producer(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
-    launch {
+fun producer(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..5) {
             channel1.send(i)
         }
@@ -53,8 +55,8 @@ fun producer(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
     }
 }
 
-fun transformer(channel1: Channel<Int>, channel3: Channel<Int>) = runBlocking {
-    launch {
+fun transformer(channel1: Channel<Int>, channel3: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (x in channel1) {
             channel3.send(x * 2)
         }
@@ -62,8 +64,8 @@ fun transformer(channel1: Channel<Int>, channel3: Channel<Int>) = runBlocking {
     }
 }
 
-fun consumer1(channel3: Channel<Int>, channel4: Channel<Int>) = runBlocking {
-    launch {
+fun consumer1(channel3: Channel<Int>, channel4: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (x in channel3) {
             channel4.send(x + 1)
         }
@@ -71,8 +73,8 @@ fun consumer1(channel3: Channel<Int>, channel4: Channel<Int>) = runBlocking {
     }
 }
 
-fun consumer2(channel2: Channel<Int>, channel5: Channel<Int>, channel6: Channel<Int>) = runBlocking {
-    launch {
+fun consumer2(channel2: Channel<Int>, channel5: Channel<Int>, channel6: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (x in channel2) {
             channel5.send(x - 1)
         }
@@ -84,7 +86,7 @@ fun consumer2(channel2: Channel<Int>, channel5: Channel<Int>, channel6: Channel<
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -97,7 +99,7 @@ fun main(): Unit= runBlocking {
     consumer1(channel3, channel4)
     consumer2(channel2, channel5, channel6)
 
-    launch {
+    launch(pool) {
         for (x in channel4) {
             channel6.send(x * 3)
         }
@@ -106,5 +108,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker132: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

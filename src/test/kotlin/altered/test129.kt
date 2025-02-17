@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test129
+import org.example.altered.test129.RunChecker129.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -48,7 +50,7 @@ class Processor(val id: Int, val input: Channel<Int>, val output: Channel<Int>) 
 }
 
 class Worker(val id: Int, private val processor: Processor) {
-    fun start() = GlobalScope.launch {
+    fun start() = GlobalScope.launch(pool) {
         while (true) {
             processor.process()
         }
@@ -78,12 +80,12 @@ suspend fun sendData(channel: Channel<Int>, data: Int) {
     channel.send(data)
 }
 
-fun startCoordinator(c1: Channel<Int>, c2: Channel<Int>) = GlobalScope.launch {
+fun startCoordinator(c1: Channel<Int>, c2: Channel<Int>) = GlobalScope.launch(pool) {
     val coordinator = Coordinator(c1, c2)
     coordinator.coordinate()
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val processor1 = createProcessor(1, channel1, channel2)
     val processor2 = createProcessor(2, channel2, channel3)
     val processor3 = createProcessor(3, channel3, channel4)
@@ -99,12 +101,17 @@ fun main(): Unit= runBlocking {
     startCoordinator(channel4, channel5)
 
     coroutineScope {
-        launch {
+        launch(pool) {
             sendData(channel1, 42)
         }
     }
 }
 
 class RunChecker129: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

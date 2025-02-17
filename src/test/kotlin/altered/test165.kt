@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test165
+import org.example.altered.test165.RunChecker165.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -48,12 +50,12 @@ class ChannelManager {
 }
 
 class Sender(private val channelManager: ChannelManager) {
-    fun startSending() = runBlocking {
-        launch {
+    fun startSending() = runBlocking(pool) {
+        launch(pool) {
             channelManager.channel1.send(1)
             channelManager.channel2.send(2)
         }
-        launch {
+        launch(pool) {
             channelManager.channel3.send(3)
             channelManager.channel4.send(4)
         }
@@ -61,12 +63,12 @@ class Sender(private val channelManager: ChannelManager) {
 }
 
 class Receiver(private val channelManager: ChannelManager) {
-    fun startReceiving() = runBlocking {
-        launch {
+    fun startReceiving() = runBlocking(pool) {
+        launch(pool) {
             val received1 = channelManager.channel1.receive()
             val received2 = channelManager.channel2.receive()
         }
-        launch {
+        launch(pool) {
             val received3 = channelManager.channel3.receive()
             val received4 = channelManager.channel4.receive()
         }
@@ -74,13 +76,13 @@ class Receiver(private val channelManager: ChannelManager) {
 }
 
 class Processor(private val channelManager: ChannelManager) {
-    fun process() = runBlocking {
-        launch {
+    fun process() = runBlocking(pool) {
+        launch(pool) {
             val data1 = channelManager.channel1.receive()
             val result1 = data1 * 2
             channelManager.channel5.send(result1)
         }
-        launch {
+        launch(pool) {
             val data2 = channelManager.channel3.receive()
             val result2 = data2 * 3
             channelManager.channel5.send(result2)
@@ -88,17 +90,17 @@ class Processor(private val channelManager: ChannelManager) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelManager = ChannelManager()
     val sender = Sender(channelManager)
     val receiver = Receiver(channelManager)
     val processor = Processor(channelManager)
 
-    launch { sender.startSending() }
-    launch { receiver.startReceiving() }
-    launch { processor.process() }
+    launch(pool) { sender.startSending() }
+    launch(pool) { receiver.startReceiving() }
+    launch(pool) { processor.process() }
 
-    launch {
+    launch(pool) {
         repeat(2) {
             val finalResult = channelManager.channel5.receive()
         }
@@ -106,5 +108,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker165: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

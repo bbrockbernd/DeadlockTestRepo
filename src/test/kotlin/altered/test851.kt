@@ -36,12 +36,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test851
+import org.example.altered.test851.RunChecker851.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun produceNumbers(channel: Channel<Int>) = runBlocking {
-    launch {
+fun produceNumbers(channel: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..5) {
             channel.send(i)
         }
@@ -49,8 +51,8 @@ fun produceNumbers(channel: Channel<Int>) = runBlocking {
     }
 }
 
-fun processNumbers(input: Channel<Int>, output: Channel<Int>) = runBlocking {
-    launch {
+fun processNumbers(input: Channel<Int>, output: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (i in input) {
             output.send(i * i)
         }
@@ -58,15 +60,15 @@ fun processNumbers(input: Channel<Int>, output: Channel<Int>) = runBlocking {
     }
 }
 
-fun consumeNumbers(channel: Channel<Int>) = runBlocking {
-    launch {
+fun consumeNumbers(channel: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (i in channel) {
             println("Consumed: $i")
         }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val numbersChannel = Channel<Int>()
     val squaredNumbersChannel = Channel<Int>()
     val resultsChannel = Channel<Int>()
@@ -77,5 +79,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker851: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test545
+import org.example.altered.test545.RunChecker545.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,7 +47,7 @@ class ChannelContainer {
 }
 
 fun producer(container: ChannelContainer) {
-    runBlocking {
+    runBlocking(pool) {
         container.channel.send(1)
         container.channel.send(2)
     }
@@ -53,7 +55,7 @@ fun producer(container: ChannelContainer) {
 
 suspend fun intermediateFunction(container: ChannelContainer) {
     coroutineScope {
-        launch {
+        launch(pool) {
             val value = container.channel.receive() // This line will cause a deadlock if there are no items sent by producer
             println("Received $value")
         }
@@ -67,17 +69,22 @@ suspend fun consumer(container: ChannelContainer) {
 fun main(): Unit{
     val container = ChannelContainer()
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             consumer(container)
         }
 
-        launch {
+        launch(pool) {
             producer(container)
         }
     }
 }
 
 class RunChecker545: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

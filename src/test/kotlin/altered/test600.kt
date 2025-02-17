@@ -36,31 +36,33 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test600
+import org.example.altered.test600.RunChecker600.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 suspend fun coroutineTask(channelA: Channel<Int>, channelB: Channel<Int>, channelC: Channel<Int>, channelD: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (i in 1..5) {
                 channelA.send(i)
             }
             channelA.close()
         }
-        launch {
+        launch(pool) {
             for (x in channelA) {
                 channelB.send(x * 2)
             }
             channelB.close()
         }
-        launch {
+        launch(pool) {
             for (y in channelB) {
                 channelC.send(y + 1)
             }
             channelC.close()
         }
-        launch {
+        launch(pool) {
             for (z in channelC) {
                 channelD.send(z * z)
             }
@@ -69,17 +71,17 @@ suspend fun coroutineTask(channelA: Channel<Int>, channelB: Channel<Int>, channe
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
     val channelC = Channel<Int>()
     val channelD = Channel<Int>()
 
-    launch {
+    launch(pool) {
         coroutineTask(channelA, channelB, channelC, channelD)
     }
 
-    launch {
+    launch(pool) {
         for (result in channelD) {
             println("Final Result: $result")
         }
@@ -87,5 +89,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker600: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

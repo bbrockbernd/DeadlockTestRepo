@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test101
+import org.example.altered.test101.RunChecker101.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -57,48 +59,48 @@ class Receiver(val channel: Channel<Int>) {
 
 class DeadlockSimulator {
     fun createDeadlock(channel: Channel<Int>) {
-        runBlocking {
+        runBlocking(pool) {
             // Coroutine 1
-            launch {
+            launch(pool) {
                 val sender = Sender(channel)
                 sender.sendValues()
             }
 
             // Coroutine 2
-            launch {
+            launch(pool) {
                 val receiver = Receiver(channel)
                 delay(1000)
                 receiver.receiveValues()
             }
 
             // Coroutine 3
-            launch {
+            launch(pool) {
                 val sender = Sender(channel)
                 sender.sendValues()
             }
 
             // Coroutine 4
-            launch {
+            launch(pool) {
                 val receiver = Receiver(channel)
                 delay(500)
                 receiver.receiveValues()
             }
 
             // Coroutine 5
-            launch {
+            launch(pool) {
                 val sender = Sender(channel)
                 sender.sendValues()
             }
 
             // Coroutine 6
-            launch {
+            launch(pool) {
                 val receiver = Receiver(channel)
                 delay(200)
                 receiver.receiveValues()
             }
 
             // Coroutine 7
-            launch {
+            launch(pool) {
                 val sender = Sender(channel)
                 sender.sendValues()
             }
@@ -113,5 +115,10 @@ fun main(): Unit{
 }
 
 class RunChecker101: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

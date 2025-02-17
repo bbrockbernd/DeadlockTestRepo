@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test113
+import org.example.altered.test113.RunChecker113.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -64,13 +66,13 @@ class Processor(
 ) {
     suspend fun process() {
         coroutineScope {
-            launch {
+            launch(pool) {
                 for (item in inputChannelA) {
                     outputChannelA.send(item * 2)
                 }
                 outputChannelA.close()
             }
-            launch {
+            launch(pool) {
                 for (item in inputChannelB) {
                     outputChannelB.send(item * 3)
                 }
@@ -80,7 +82,7 @@ class Processor(
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
     val channelC = Channel<Int>()
@@ -98,31 +100,36 @@ fun main(): Unit= runBlocking {
     val consumerC = Consumer(channelE)
     val consumerD = Consumer(channelF)
     
-    launch { producerA.produce() }
-    launch { producerB.produce() }
+    launch(pool) { producerA.produce() }
+    launch(pool) { producerB.produce() }
     
-    launch { processorA.process() }
+    launch(pool) { processorA.process() }
     
-    launch {
+    launch(pool) {
         for (item in channelD) {
             channelE.send(item + 5)
         }
         channelE.close()
     }
     
-    launch {
+    launch(pool) {
         for (item in channelC) {
             channelF.send(item + 10)
         }
         channelF.close()
     }
     
-    launch { consumerA.consume() }
-    launch { consumerB.consume() }
-    launch { consumerC.consume() }
-    launch { consumerD.consume() }
+    launch(pool) { consumerA.consume() }
+    launch(pool) { consumerB.consume() }
+    launch(pool) { consumerC.consume() }
+    launch(pool) { consumerD.consume() }
 }
 
 class RunChecker113: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,18 +36,20 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test743
+import org.example.altered.test743.RunChecker743.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 fun producer(channel: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         channel.send(42)
     }
 }
 
 fun consumer(channel: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         println("Received: ${channel.receive()}")
     }
 }
@@ -55,9 +57,9 @@ fun consumer(channel: Channel<Int>) {
 fun deadlockExample() {
     val channel = Channel<Int>()
 
-    runBlocking {
-        launch { producer(channel) }
-        launch { consumer(channel) }
+    runBlocking(pool) {
+        launch(pool) { producer(channel) }
+        launch(pool) { consumer(channel) }
         // Deadlock arises here because `channel.send` in producer and `channel.receive` in consumer both are runBlocking
     }
 }
@@ -67,5 +69,10 @@ fun main(): Unit{
 }
 
 class RunChecker743: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

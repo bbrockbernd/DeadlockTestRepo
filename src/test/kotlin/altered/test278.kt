@@ -35,10 +35,11 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test278
+import org.example.altered.test278.RunChecker278.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 
 class Producer {
     val channel1 = Channel<Int>()
@@ -73,7 +74,7 @@ class Consumer {
     }
 }
 
-fun filterData(channelIn: Channel<Int>, channelOut: Channel<Int>) = runBlocking {
+fun filterData(channelIn: Channel<Int>, channelOut: Channel<Int>) = runBlocking(pool) {
     for (i in channelIn) {
         if (i % 2 == 0) {
             channelOut.send(i)
@@ -82,29 +83,34 @@ fun filterData(channelIn: Channel<Int>, channelOut: Channel<Int>) = runBlocking 
     channelOut.close()
 }
 
-fun processAndPrintData(channel: Channel<Int>) = runBlocking {
+fun processAndPrintData(channel: Channel<Int>) = runBlocking(pool) {
     for (i in channel) {
         println("Data processed: ${i * 2}")
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val producer = Producer()
     val consumer = Consumer()
     val channel7 = Channel<Int>()
 
-    launch { producer.produceToChannels() }
-    launch { filterData(producer.channel1, consumer.channel4) }
-    launch { filterData(producer.channel2, consumer.channel5) }
-    launch { filterData(producer.channel3, consumer.channel6) }
+    launch(pool) { producer.produceToChannels() }
+    launch(pool) { filterData(producer.channel1, consumer.channel4) }
+    launch(pool) { filterData(producer.channel2, consumer.channel5) }
+    launch(pool) { filterData(producer.channel3, consumer.channel6) }
 
-    launch { consumer.consumeFromChannels(consumer.channel4) }
-    launch { consumer.consumeFromChannels(consumer.channel5) }
-    launch { consumer.consumeFromChannels(consumer.channel6) }
+    launch(pool) { consumer.consumeFromChannels(consumer.channel4) }
+    launch(pool) { consumer.consumeFromChannels(consumer.channel5) }
+    launch(pool) { consumer.consumeFromChannels(consumer.channel6) }
 
-    launch { processAndPrintData(channel7) }
+    launch(pool) { processAndPrintData(channel7) }
 }
 
 class RunChecker278: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

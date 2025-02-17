@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test105
+import org.example.altered.test105.RunChecker105.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -87,31 +89,31 @@ class Consumer3(val channel: Channel<Int>) {
     }
 }
 
-fun producer1Func(prod1: Producer1) = runBlocking {
+fun producer1Func(prod1: Producer1) = runBlocking(pool) {
     prod1.produce()
 }
 
-fun producer2Func(prod2: Producer2) = runBlocking {
+fun producer2Func(prod2: Producer2) = runBlocking(pool) {
     prod2.produce()
 }
 
-fun producer3Func(prod3: Producer3) = runBlocking {
+fun producer3Func(prod3: Producer3) = runBlocking(pool) {
     prod3.produce()
 }
 
-fun consumer1Func(cons1: Consumer1) = runBlocking {
+fun consumer1Func(cons1: Consumer1) = runBlocking(pool) {
     cons1.consume()
 }
 
-fun consumer2Func(cons2: Consumer2) = runBlocking {
+fun consumer2Func(cons2: Consumer2) = runBlocking(pool) {
     cons2.consume()
 }
 
-fun consumer3Func(cons3: Consumer3) = runBlocking {
+fun consumer3Func(cons3: Consumer3) = runBlocking(pool) {
     cons3.consume()
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -124,15 +126,20 @@ fun main(): Unit= runBlocking {
     val consumer2 = Consumer2(channel2)
     val consumer3 = Consumer3(channel3)
 
-    launch { producer1Func(producer1) }
-    launch { producer2Func(producer2) }
-    launch { producer3Func(producer3) }
+    launch(pool) { producer1Func(producer1) }
+    launch(pool) { producer2Func(producer2) }
+    launch(pool) { producer3Func(producer3) }
 
-    launch { consumer1Func(consumer1) }
-    launch { consumer2Func(consumer2) }
-    launch { consumer3Func(consumer3) }
+    launch(pool) { consumer1Func(consumer1) }
+    launch(pool) { consumer2Func(consumer2) }
+    launch(pool) { consumer3Func(consumer3) }
 }
 
 class RunChecker105: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

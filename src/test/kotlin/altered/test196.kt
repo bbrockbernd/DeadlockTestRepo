@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test196
+import org.example.altered.test196.RunChecker196.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -68,8 +70,8 @@ class Consumer2(val ch4: Channel<Int>) {
 }
 
 fun channelTransfer(ch1: Channel<Int>, ch5: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 ch5.send(ch1.receive())
             }
@@ -78,8 +80,8 @@ fun channelTransfer(ch1: Channel<Int>, ch5: Channel<Int>) {
 }
 
 fun crossTransfer(ch2: Channel<Int>, ch3: Channel<Int>, ch4: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 ch3.send(ch2.receive())
                 ch4.send(ch3.receive())
@@ -89,8 +91,8 @@ fun crossTransfer(ch2: Channel<Int>, ch3: Channel<Int>, ch4: Channel<Int>) {
 }
 
 fun monitor(ch5: Channel<Int>, ch4: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 println(ch5.receive())
                 println(ch4.receive())
@@ -106,23 +108,23 @@ fun main(): Unit{
     val ch4 = Channel<Int>()
     val ch5 = Channel<Int>()
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             Producer1(ch1).produce()
         }
-        launch {
+        launch(pool) {
             Producer2(ch2).produce()
         }
-        launch {
+        launch(pool) {
             Consumer1(ch3).consume()
         }
-        launch {
+        launch(pool) {
             Consumer2(ch4).consume()
         }
-        launch {
+        launch(pool) {
             channelTransfer(ch1, ch5)
         }
-        launch {
+        launch(pool) {
             crossTransfer(ch2, ch3, ch4)
         }
         monitor(ch5, ch4)
@@ -130,5 +132,10 @@ fun main(): Unit{
 }
 
 class RunChecker196: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

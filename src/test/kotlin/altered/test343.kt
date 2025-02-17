@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test343
+import org.example.altered.test343.RunChecker343.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -51,13 +53,13 @@ class ClassE(
 )
 
 fun function1(ch1: Channel<Int>, ch2: Channel<Int>) {
-    runBlocking {
-        val scope = CoroutineScope(Dispatchers.Default)
-        scope.launch {
+    runBlocking(pool) {
+        val scope = CoroutineScope(pool)
+        scope.launch(pool) {
             ch1.send(1)
             ch1.receive()
         }
-        scope.launch {
+        scope.launch(pool) {
             ch2.send(2)
             ch2.receive() // STUCK
         }
@@ -65,13 +67,13 @@ fun function1(ch1: Channel<Int>, ch2: Channel<Int>) {
 }
 
 fun function2(ch3: Channel<Int>, ch4: Channel<Int>) {
-    runBlocking {
-        val scope = CoroutineScope(Dispatchers.Default)
-        scope.launch {
+    runBlocking(pool) {
+        val scope = CoroutineScope(pool)
+        scope.launch(pool) {
             ch3.send(3) // STUCK
             ch3.receive()
         }
-        scope.launch {
+        scope.launch(pool) {
             ch4.send(4) // STUCK
             ch4.receive()
         }
@@ -79,9 +81,9 @@ fun function2(ch3: Channel<Int>, ch4: Channel<Int>) {
 }
 
 fun function3(ch1: Channel<Int>, ch3: Channel<Int>) {
-    runBlocking {
-        val scope = CoroutineScope(Dispatchers.Default)
-        scope.launch {
+    runBlocking(pool) {
+        val scope = CoroutineScope(pool)
+        scope.launch(pool) {
             ch1.receive()
             ch3.send(5)
         }
@@ -89,9 +91,9 @@ fun function3(ch1: Channel<Int>, ch3: Channel<Int>) {
 }
 
 fun function4(ch2: Channel<Int>, ch4: Channel<Int>) {
-    runBlocking {
-        val scope = CoroutineScope(Dispatchers.Default)
-        scope.launch {
+    runBlocking(pool) {
+        val scope = CoroutineScope(pool)
+        scope.launch(pool) {
             ch2.receive()
             ch4.send(6)
         }
@@ -99,19 +101,19 @@ fun function4(ch2: Channel<Int>, ch4: Channel<Int>) {
 }
 
 fun function5(classE: ClassE) {
-    runBlocking {
-        val scope = CoroutineScope(Dispatchers.Default)
-        scope.launch {
+    runBlocking(pool) {
+        val scope = CoroutineScope(pool)
+        scope.launch(pool) {
             function1(classE.ch1, classE.ch2)
         }
-        scope.launch {
+        scope.launch(pool) {
             function2(classE.ch3, classE.ch4)
         }
     }
 }
 
 fun main(): Unit{
-    runBlocking {
+    runBlocking(pool) {
         val ch1 = Channel<Int>()
         val ch2 = Channel<Int>()
         val ch3 = Channel<Int>()
@@ -123,24 +125,29 @@ fun main(): Unit{
         val classD = ClassD(ch4)
         val classE = ClassE(ch1, ch2, ch3, ch4)
 
-        launch {
+        launch(pool) {
             function1(classA.ch1, classB.ch2)
         }
-        launch {
+        launch(pool) {
             function2(classC.ch3, classD.ch4)
         }
-        launch {
+        launch(pool) {
             function3(classA.ch1, classC.ch3)
         }
-        launch {
+        launch(pool) {
             function4(classB.ch2, classD.ch4)
         }
-        launch {
+        launch(pool) {
             function5(classE)
         }
     }
 }
 
 class RunChecker343: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test625
+import org.example.altered.test625.RunChecker625.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -52,8 +54,8 @@ class Consumer(val channel: Channel<Int>) {
     }
 }
 
-fun producerFunction(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
-    launch {
+fun producerFunction(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val producer1 = Producer(channel1)
         val producer2 = Producer(channel2)
         for (i in 1..5) {
@@ -63,8 +65,8 @@ fun producerFunction(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocki
     }
 }
 
-fun consumerFunction(channel3: Channel<Int>, channel4: Channel<Int>, channel5: Channel<Int>) = runBlocking {
-    launch {
+fun consumerFunction(channel3: Channel<Int>, channel4: Channel<Int>, channel5: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val consumer1 = Consumer(channel3)
         val consumer2 = Consumer(channel4)
         val consumer3 = Consumer(channel5)
@@ -76,31 +78,31 @@ fun consumerFunction(channel3: Channel<Int>, channel4: Channel<Int>, channel5: C
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
     val channel4 = Channel<Int>()
     val channel5 = Channel<Int>()
 
-    launch { producerFunction(channel1, channel2) }
-    launch { consumerFunction(channel3, channel4, channel5) }
+    launch(pool) { producerFunction(channel1, channel2) }
+    launch(pool) { consumerFunction(channel3, channel4, channel5) }
 
-    val relayProducer1 = launch {
+    val relayProducer1 = launch(pool) {
         for (i in 1..5) {
             val value = channel1.receive()
             channel3.send(value)
         }
     }
 
-    val relayProducer2 = launch {
+    val relayProducer2 = launch(pool) {
         for (i in 1..5) {
             val value = channel2.receive()
             channel4.send(value)
         }
     }
 
-    val relayProducer3 = launch {
+    val relayProducer3 = launch(pool) {
         for (i in 1..5) {
             val value = channel1.receive()
             channel5.send(value)
@@ -113,5 +115,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker625: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

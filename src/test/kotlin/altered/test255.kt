@@ -35,12 +35,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test255
+import org.example.altered.test255.RunChecker255.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class Producer1(val channel1: Channel<Int>) {
-    fun produce() = runBlocking {
+    fun produce() = runBlocking(pool) {
         for (i in 1..3) {
             channel1.send(i)
         }
@@ -48,7 +50,7 @@ class Producer1(val channel1: Channel<Int>) {
 }
 
 class Producer2(val channel2: Channel<Int>) {
-    fun produce() = runBlocking {
+    fun produce() = runBlocking(pool) {
         for (i in 4..6) {
             channel2.send(i)
         }
@@ -56,7 +58,7 @@ class Producer2(val channel2: Channel<Int>) {
 }
 
 class Consumer1(val channel1: Channel<Int>, val channel2: Channel<Int>) {
-    fun consume() = runBlocking {
+    fun consume() = runBlocking(pool) {
         repeat(3) {
             val value1 = channel1.receive()
             val value2 = channel2.receive()
@@ -65,7 +67,7 @@ class Consumer1(val channel1: Channel<Int>, val channel2: Channel<Int>) {
 }
 
 class Consumer2(val channel1: Channel<Int>, val channel2: Channel<Int>) {
-    fun consume() = runBlocking {
+    fun consume() = runBlocking(pool) {
         repeat(3) {
             val value1 = channel1.receive()
             val value2 = channel2.receive()
@@ -74,29 +76,34 @@ class Consumer2(val channel1: Channel<Int>, val channel2: Channel<Int>) {
 }
 
 suspend fun deadlockScenario(channel1: Channel<Int>, channel2: Channel<Int>) = coroutineScope {
-    launch {
+    launch(pool) {
         Producer1(channel1).produce()
     }
     
-    launch {
+    launch(pool) {
         Producer2(channel2).produce()
     }
 
-    launch {
+    launch(pool) {
         Consumer1(channel1, channel2).consume()
     }
 
-    launch {
+    launch(pool) {
         Consumer2(channel1, channel2).consume()
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     deadlockScenario(channel1, channel2)
 }
 
 class RunChecker255: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test961
+import org.example.altered.test961.RunChecker961.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -58,14 +60,14 @@ class ClassTwo(val channelC: Channel<Int>, val channelD: Channel<Int>) {
 
 suspend fun funcThree(channelA: Channel<Int>, channelC: Channel<Int>, channelD: Channel<Int>) {
     coroutineScope {
-        val receivedA = async { channelA.receive() }
+        val receivedA = async(pool) { channelA.receive() }
         channelD.send(receivedA.await())
         val receivedC = channelC.receive()
         println("funcThree received: $receivedC")
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
     val channelC = Channel<Int>()
@@ -74,9 +76,9 @@ fun main(): Unit= runBlocking {
     val objOne = ClassOne(channelA, channelB)
     val objTwo = ClassTwo(channelC, channelD)
 
-    launch { objOne.funcOne() }
-    launch { objTwo.funcTwo() }
-    launch { funcThree(channelA, channelC, channelD) }
+    launch(pool) { objOne.funcOne() }
+    launch(pool) { objTwo.funcTwo() }
+    launch(pool) { funcThree(channelA, channelC, channelD) }
 
     delay(1000) // Give some time before closing
     channelA.cancel()
@@ -86,5 +88,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker961: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

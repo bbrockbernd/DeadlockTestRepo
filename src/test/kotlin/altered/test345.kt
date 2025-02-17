@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test345
+import org.example.altered.test345.RunChecker345.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -44,8 +46,8 @@ class B(val channel2: Channel<Int>, val channel3: Channel<Int>)
 class C(val channel3: Channel<Int>, val channel1: Channel<Int>)
 
 fun func1(a: A) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val received = a.channel1.receive()
             a.channel2.send(received + 1)
         }
@@ -53,8 +55,8 @@ fun func1(a: A) {
 }
 
 fun func2(b: B) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val received = b.channel2.receive()
             b.channel3.send(received + 2)
         }
@@ -62,8 +64,8 @@ fun func2(b: B) {
 }
 
 fun func3(c: C) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val received = c.channel3.receive()
             c.channel1.send(received + 3)
         }
@@ -71,8 +73,8 @@ fun func3(c: C) {
 }
 
 fun func4(a: A, b: B, c: C) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             a.channel1.send(1)
             val received = a.channel2.receive()
             b.channel2.send(received)
@@ -98,5 +100,10 @@ fun main(): Unit{
 }
 
 class RunChecker345: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

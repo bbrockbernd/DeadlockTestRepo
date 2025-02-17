@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test550
+import org.example.altered.test550.RunChecker550.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -65,13 +67,13 @@ class Mediator(
 ) {
     suspend fun mediate() {
         coroutineScope {
-            launch {
+            launch(pool) {
                 for (msg in channel1) {
                     channel2.send("Modified: $msg")
                 }
             }
 
-            launch {
+            launch(pool) {
                 for (msg in channel2) {
                     channel3.send(msg)
                 }
@@ -80,7 +82,7 @@ class Mediator(
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<String>()
     val channel2 = Channel<String>()
     val channel3 = Channel<String>()
@@ -88,12 +90,17 @@ fun main(): Unit= runBlocking {
     val consumer = Consumer(channel3)
     val mediator = Mediator(channel1, channel2, channel3)
 
-    launch { producer.produce("Hello") }
-    launch { producer.produce("World") }
-    launch { mediator.mediate() }
-    launch { consumer.consume() }
+    launch(pool) { producer.produce("Hello") }
+    launch(pool) { producer.produce("World") }
+    launch(pool) { mediator.mediate() }
+    launch(pool) { consumer.consume() }
 }
 
 class RunChecker550: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

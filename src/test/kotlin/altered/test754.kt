@@ -36,39 +36,41 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test754
+import org.example.altered.test754.RunChecker754.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
-fun function1(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
-    launch {
+fun function1(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         channel1.send(1)
         channel2.send(2)
     }
 }
 
-fun function2(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking {
-    launch {
+fun function2(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val receivedValue = channel2.receive()
         channel3.send(receivedValue + 1)
     }
 }
 
-fun function3(channel3: Channel<Int>, channel4: Channel<Int>) = runBlocking {
-    launch {
+fun function3(channel3: Channel<Int>, channel4: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val receivedValue = channel3.receive()
         channel4.send(receivedValue + 1)
     }
 }
 
-fun function4(channel4: Channel<Int>, channel5: Channel<Int>) = runBlocking {
-    launch {
+fun function4(channel4: Channel<Int>, channel5: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val receivedValue = channel4.receive()
         channel5.send(receivedValue + 1)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -80,12 +82,17 @@ fun main(): Unit= runBlocking {
     function3(channel3, channel4)
     function4(channel4, channel5)
 
-    launch {
+    launch(pool) {
         val finalResult = channel5.receive()
         println("Final result: $finalResult")
     }
 }
 
 class RunChecker754: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

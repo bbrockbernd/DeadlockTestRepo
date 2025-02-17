@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test326
+import org.example.altered.test326.RunChecker326.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -43,16 +45,16 @@ class DataChannel(val id: Int, val channel: Channel<Int>)
 class ProcessingUnit(val id: Int, val inputChannel: Channel<Int>, val outputChannel: Channel<Int>)
 class Pipeline(val units: List<ProcessingUnit>, val finalChannel: Channel<Int>)
 
-fun generateData(channel: DataChannel) = runBlocking {
-    launch {
+fun generateData(channel: DataChannel) = runBlocking(pool) {
+    launch(pool) {
         repeat(10) {
             channel.channel.send(it)
         }
     }
 }
 
-fun processFirstUnit(unit: ProcessingUnit) = runBlocking {
-    launch {
+fun processFirstUnit(unit: ProcessingUnit) = runBlocking(pool) {
+    launch(pool) {
         repeat(10) {
             val data = unit.inputChannel.receive()
             unit.outputChannel.send(data * 2)
@@ -60,8 +62,8 @@ fun processFirstUnit(unit: ProcessingUnit) = runBlocking {
     }
 }
 
-fun processSecondUnit(unit: ProcessingUnit) = runBlocking {
-    launch {
+fun processSecondUnit(unit: ProcessingUnit) = runBlocking(pool) {
+    launch(pool) {
         repeat(10) {
             val data = unit.inputChannel.receive()
             unit.outputChannel.send(data + 1)
@@ -86,9 +88,9 @@ fun buildPipeline(): Pipeline {
     return Pipeline(listOf(unit1, unit2, unit3, unit4, unit5), finalChannel)
 }
 
-fun runPipeline(pipeline: Pipeline) = runBlocking {
+fun runPipeline(pipeline: Pipeline) = runBlocking(pool) {
     pipeline.units.forEach { unit ->
-        launch {
+        launch(pool) {
             when (unit.id) {
                 1 -> processFirstUnit(unit)
                 2 -> processSecondUnit(unit)
@@ -100,20 +102,20 @@ fun runPipeline(pipeline: Pipeline) = runBlocking {
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val dataChannel = DataChannel(0, Channel<Int>())
     generateData(dataChannel)
     
     val pipeline = buildPipeline()
     runPipeline(pipeline)
     
-    launch {
+    launch(pool) {
         repeat(10) {
             dataChannel.channel.send(it)
         }
     }
     
-    launch {
+    launch(pool) {
         repeat(10) {
             println(pipeline.finalChannel.receive())
         }
@@ -121,5 +123,10 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker326: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

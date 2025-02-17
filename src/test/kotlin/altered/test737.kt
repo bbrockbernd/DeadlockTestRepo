@@ -36,17 +36,19 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test737
+import org.example.altered.test737.RunChecker737.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 val channel = Channel<Int>()
 
-fun main(): Unit= runBlocking {
-    launch { coroutineA() }
-    launch { coroutineB() }
-    launch { coroutineC() }
-    launch { coroutineD() }
+fun main(): Unit= runBlocking(pool) {
+    launch(pool) { coroutineA() }
+    launch(pool) { coroutineB() }
+    launch(pool) { coroutineC() }
+    launch(pool) { coroutineD() }
 }
 
 suspend fun coroutineA() {
@@ -72,35 +74,40 @@ suspend fun coroutineD() {
 }
 
 fun function1() {
-    runBlocking { 
+    runBlocking(pool) { 
         println("function1 started")
     }
 }
 
 fun function2() {
-    runBlocking { 
+    runBlocking(pool) { 
         println("function2 started")
     }
 }
 
 fun function3() {
-    runBlocking { 
+    runBlocking(pool) { 
         println("function3 started")
     }
 }
 
 fun function4() {
-    runBlocking { 
+    runBlocking(pool) { 
         println("function4 started")
     }
 }
 
 fun function5() {
-    runBlocking { 
+    runBlocking(pool) { 
         println("function5 started")
     }
 }
 
 class RunChecker737: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

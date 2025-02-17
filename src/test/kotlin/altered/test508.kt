@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test508
+import org.example.altered.test508.RunChecker508.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -44,8 +46,8 @@ class ClassA {
     val channelA = Channel<Int>()
 
     fun sendToChannelA() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 channelA.send(1)
             }
         }
@@ -56,8 +58,8 @@ class ClassB {
     val channelB = Channel<Int>()
 
     fun receiveFromChannelA(channelA: Channel<Int>) {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val received = channelA.receive()
                 channelB.send(received)
             }
@@ -69,8 +71,8 @@ class ClassC {
     val channelB: Channel<Int> = Channel()
 
     fun receiveFromChannelB(channelB: Channel<Int>) {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val received = channelB.receive()
                 println("Received from channelB: $received")
             }
@@ -79,8 +81,8 @@ class ClassC {
 }
 
 fun functionOne(classA: ClassA, classB: ClassB) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             classA.sendToChannelA()
             classB.receiveFromChannelA(classA.channelA)
         }
@@ -88,8 +90,8 @@ fun functionOne(classA: ClassA, classB: ClassB) {
 }
 
 fun functionTwo(classB: ClassB, classC: ClassC) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             classC.receiveFromChannelB(classB.channelB)
         }
     }
@@ -103,13 +105,18 @@ fun main(): Unit{
     functionOne(classA, classB)
     functionTwo(classB, classC)
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             classC.channelB.send(2) // Simulate sending some value to unblock receive
         }
     }
 }
 
 class RunChecker508: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

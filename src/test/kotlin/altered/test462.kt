@@ -35,17 +35,19 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test462
+import org.example.altered.test462.RunChecker462.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
 fun channelOne(c: SendChannel<Int>, r: ReceiveChannel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (x in 1..10) {
             c.send(x)
         }
     }
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (x in r) {
             println("Received in channelOne: $x")
         }
@@ -53,7 +55,7 @@ fun channelOne(c: SendChannel<Int>, r: ReceiveChannel<Int>) {
 }
 
 fun channelTwo(c: SendChannel<String>, r: ReceiveChannel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (x in r) {
             c.send("String $x")
         }
@@ -62,12 +64,12 @@ fun channelTwo(c: SendChannel<String>, r: ReceiveChannel<Int>) {
 
 suspend fun channelThree(c1: SendChannel<Double>, c2: SendChannel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (x in 1..10) {
                 c1.send(x.toDouble())
             }
         }
-        launch {
+        launch(pool) {
             for (x in 11..20) {
                 c2.send(x)
             }
@@ -76,12 +78,12 @@ suspend fun channelThree(c1: SendChannel<Double>, c2: SendChannel<Int>) {
 }
 
 fun channelFour(c: SendChannel<Char>, r1: ReceiveChannel<String>, r2: ReceiveChannel<Double>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (x in r1) {
             c.send(x.first())
         }
     }
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (x in r2) {
             c.send(x.toString().first())
         }
@@ -90,7 +92,7 @@ fun channelFour(c: SendChannel<Char>, r1: ReceiveChannel<String>, r2: ReceiveCha
 
 suspend fun channelFive(c: SendChannel<Long>, r: ReceiveChannel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (x in r) {
                 c.send(x.toLong())
             }
@@ -99,19 +101,19 @@ suspend fun channelFive(c: SendChannel<Long>, r: ReceiveChannel<Int>) {
 }
 
 fun channelSix(c: SendChannel<Float>, r1: ReceiveChannel<Char>, r2: ReceiveChannel<Long>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (x in r1) {
             c.send(x.toFloat())
         }
     }
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (x in r2) {
             c.send(x.toFloat())
         }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val ch1 = Channel<Int>()
     val ch2 = Channel<Int>()
     val ch3 = Channel<String>()
@@ -131,5 +133,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker462: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

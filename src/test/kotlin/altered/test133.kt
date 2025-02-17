@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test133
+import org.example.altered.test133.RunChecker133.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -82,40 +84,40 @@ class ConnectorB(val inputChannel: Channel<Int>, val outputChannel: Channel<Int>
 }
 
 fun functionA(channel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             Producer(channel).produce()
         }
     }
 }
 
 fun functionB(channel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             ConsumerA(channel).consume()
         }
     }
 }
 
 fun functionC(channel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             ConsumerB(channel).consume()
         }
     }
 }
 
 fun functionD(inputChannel: Channel<Int>, outputChannel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             ConnectorA(inputChannel, outputChannel).connect()
         }
     }
 }
 
 fun functionE(inputChannel: Channel<Int>, outputChannel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             ConnectorB(inputChannel, outputChannel).connect()
         }
     }
@@ -129,17 +131,22 @@ fun main(): Unit {
     val channel5 = Channel<Int>()
     val channel6 = Channel<Int>()
 
-    runBlocking {
-        launch { functionA(channel1) }
-        launch { functionB(channel1) }
-        launch { functionC(channel1) }
-        launch { functionD(channel2, channel3) }
-        launch { functionE(channel3, channel4) }
-        launch { functionA(channel5) }
-        launch { functionB(channel5) }
+    runBlocking(pool) {
+        launch(pool) { functionA(channel1) }
+        launch(pool) { functionB(channel1) }
+        launch(pool) { functionC(channel1) }
+        launch(pool) { functionD(channel2, channel3) }
+        launch(pool) { functionE(channel3, channel4) }
+        launch(pool) { functionA(channel5) }
+        launch(pool) { functionB(channel5) }
     }
 }
 
 class RunChecker133: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,13 +35,15 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test125
+import org.example.altered.test125.RunChecker125.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class Producer1(private val channel: Channel<Int>) {
     fun produce() {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             for (i in 1..5) {
                 channel.send(i)
             }
@@ -51,7 +53,7 @@ class Producer1(private val channel: Channel<Int>) {
 
 class Producer2(private val channel: Channel<Int>) {
     fun produce() {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             for (i in 6..10) {
                 channel.send(i)
             }
@@ -61,7 +63,7 @@ class Producer2(private val channel: Channel<Int>) {
 
 class Consumer1(private val channel: Channel<Int>) {
     fun consume() {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             repeat(5) {
                 println("Consumer1 received: ${channel.receive()}")
             }
@@ -71,7 +73,7 @@ class Consumer1(private val channel: Channel<Int>) {
 
 class Consumer2(private val channel: Channel<Int>) {
     fun consume() {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             repeat(5) {
                 println("Consumer2 received: ${channel.receive()}")
             }
@@ -81,7 +83,7 @@ class Consumer2(private val channel: Channel<Int>) {
 
 class Intermediate(private val inputChannel: Channel<Int>, private val outputChannel: Channel<Int>) {
     fun relay() {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             repeat(10) {
                 outputChannel.send(inputChannel.receive())
             }
@@ -91,7 +93,7 @@ class Intermediate(private val inputChannel: Channel<Int>, private val outputCha
 
 class Printer(private val channel: Channel<Int>) {
     fun print() {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             repeat(10) {
                 println("Printer received: ${channel.receive()}")
             }
@@ -117,7 +119,7 @@ class Manager(
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
 
@@ -135,5 +137,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker125: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

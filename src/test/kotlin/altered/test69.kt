@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test69
+import org.example.altered.test69.RunChecker69.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -62,24 +64,29 @@ class ClassB(val channel2: Channel<String>) {
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<String>()
     
     val classA = ClassA(channel1, channel2)
     val classB = ClassB(channel2)
     
-    launch { classA.functionA() }
-    launch { classA.functionB() }
-    launch { classB.functionC() }
+    launch(pool) { classA.functionA() }
+    launch(pool) { classA.functionB() }
+    launch(pool) { classB.functionC() }
     
     coroutineScope {
-        launch { classA.functionA() }
-        launch { classA.functionB() }
-        launch { classB.functionC() }
+        launch(pool) { classA.functionA() }
+        launch(pool) { classA.functionB() }
+        launch(pool) { classB.functionC() }
     }
 }
 
 class RunChecker69: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

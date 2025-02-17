@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test359
+import org.example.altered.test359.RunChecker359.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -60,7 +62,7 @@ class Coordinator(val channels: List<Channel<Int>>) {
     suspend fun coordinate() {
         coroutineScope {
             channels.forEach { channel ->
-                launch {
+                launch(pool) {
                     for (msg in channel) {
                         println("Coordinator received: $msg")
                     }
@@ -74,7 +76,7 @@ fun createChannels(): List<Channel<Int>> {
     return List(8) { Channel<Int>() }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channels = createChannels()
 
     val producer1 = Producer(1, channels[0])
@@ -89,17 +91,22 @@ fun main(): Unit= runBlocking {
 
     val coordinator = Coordinator(channels)
 
-    launch { producer1.produce() }
-    launch { producer2.produce() }
-    launch { producer3.produce() }
-    launch { producer4.produce() }
-    launch { consumer1.consume() }
-    launch { consumer2.consume() }
-    launch { consumer3.consume() }
-    launch { consumer4.consume() }
-    launch { coordinator.coordinate() }
+    launch(pool) { producer1.produce() }
+    launch(pool) { producer2.produce() }
+    launch(pool) { producer3.produce() }
+    launch(pool) { producer4.produce() }
+    launch(pool) { consumer1.consume() }
+    launch(pool) { consumer2.consume() }
+    launch(pool) { consumer3.consume() }
+    launch(pool) { consumer4.consume() }
+    launch(pool) { coordinator.coordinate() }
 }
 
 class RunChecker359: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

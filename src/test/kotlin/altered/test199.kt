@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test199
+import org.example.altered.test199.RunChecker199.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -75,15 +77,15 @@ class Aggregator(val manager: Manager) {
 
 suspend fun start(work1: Worker1, work2: Worker2) {
     coroutineScope {
-        launch { work1.doWork() }
-        launch { work2.doWork() }
+        launch(pool) { work1.doWork() }
+        launch(pool) { work2.doWork() }
     }
 }
 
 suspend fun collectResults(aggregator: Aggregator, manager: Manager) {
     coroutineScope {
-        launch { aggregator.aggregate() }
-        launch {
+        launch(pool) { aggregator.aggregate() }
+        launch(pool) {
             repeat(5) {
                 val result = manager.resultChannel.receive()
                 println("Result: $result")
@@ -92,7 +94,7 @@ suspend fun collectResults(aggregator: Aggregator, manager: Manager) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val manager = Manager()
     val worker1 = Worker1(manager)
     val worker2 = Worker2(manager)
@@ -103,5 +105,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker199: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

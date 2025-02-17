@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test289
+import org.example.altered.test289.RunChecker289.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -65,21 +67,21 @@ class Processor(private val channel: Channel<Int>) {
     }
 }
 
-fun producerFunction(channel: Channel<Int>) = runBlocking {
+fun producerFunction(channel: Channel<Int>) = runBlocking(pool) {
     val producer = Producer(channel)
-    launch {
+    launch(pool) {
         producer.produce(listOf(1, 2, 3, 4, 5))
     }
 }
 
-fun consumerFunction(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
+fun consumerFunction(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
     val consumer = Consumer(channel1, channel2)
-    launch {
+    launch(pool) {
         consumer.consume()
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -88,20 +90,20 @@ fun main(): Unit= runBlocking {
     val channel6 = Channel<Int>()
     val channel7 = Channel<Int>()
 
-    launch { 
+    launch(pool) { 
         producerFunction(channel1)
     }
 
-    launch {
+    launch(pool) {
         consumerFunction(channel1, channel2)
     }
 
-    launch {
+    launch(pool) {
         val processor1 = Processor(channel2)
         processor1.process(channel3)
     }
 
-    launch {
+    launch(pool) {
         val processor2 = Processor(channel3)
         processor2.process(channel4)
     }
@@ -110,5 +112,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker289: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

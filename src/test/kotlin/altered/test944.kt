@@ -36,11 +36,13 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test944
+import org.example.altered.test944.RunChecker944.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
 
@@ -50,26 +52,31 @@ fun main(): Unit= runBlocking {
     launchDeadlock4(channelA, channelB)
 }
 
-fun CoroutineScope.launchDeadlock1(channelA: Channel<Int>, channelB: Channel<Int>) = launch {
+fun CoroutineScope.launchDeadlock1(channelA: Channel<Int>, channelB: Channel<Int>) = launch(pool) {
     val valueA = channelA.receive()
     channelB.send(valueA)
 }
 
-fun CoroutineScope.launchDeadlock2(channelA: Channel<Int>, channelB: Channel<Int>) = launch {
+fun CoroutineScope.launchDeadlock2(channelA: Channel<Int>, channelB: Channel<Int>) = launch(pool) {
     val valueB = channelB.receive()
     channelA.send(valueB)
 }
 
-fun CoroutineScope.launchDeadlock3(channelA: Channel<Int>, channelB: Channel<Int>) = launch {
+fun CoroutineScope.launchDeadlock3(channelA: Channel<Int>, channelB: Channel<Int>) = launch(pool) {
     channelA.send(1)
     val received = channelB.receive()
 }
 
-fun CoroutineScope.launchDeadlock4(channelA: Channel<Int>, channelB: Channel<Int>) = launch {
+fun CoroutineScope.launchDeadlock4(channelA: Channel<Int>, channelB: Channel<Int>) = launch(pool) {
     channelB.send(2)
     val received = channelA.receive()
 }
 
 class RunChecker944: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

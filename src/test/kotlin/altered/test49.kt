@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test49
+import org.example.altered.test49.RunChecker49.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -81,12 +83,12 @@ class Aggregator {
     val channelE = Channel<Int>()
     suspend fun aggregate(channel1: Channel<Int>, channel2: Channel<Int>) {
         coroutineScope {
-            launch {
+            launch(pool) {
                 for (i in channel1) {
                     channelE.send(i)
                 }
             }
-            launch {
+            launch(pool) {
                 for (i in channel2) {
                     channelE.send(i)
                 }
@@ -96,7 +98,7 @@ class Aggregator {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val producer = Producer()
     val consumer = Consumer()
     val aggregator = Aggregator()
@@ -104,30 +106,30 @@ fun main(): Unit= runBlocking {
     val channelF = Channel<Int>()
     val channelG = Channel<Int>()
 
-    launch {
+    launch(pool) {
         producer.produceA()
     }
-    launch {
+    launch(pool) {
         producer.produceB()
     }
-    launch {
+    launch(pool) {
         consumer.consumeA(producer.channelA)
     }
-    launch {
+    launch(pool) {
         consumer.consumeB(producer.channelB)
     }
-    launch {
+    launch(pool) {
         aggregator.aggregate(consumer.channelC, consumer.channelD)
     }
 
-    launch {
+    launch(pool) {
         for (i in aggregator.channelE) {
             channelF.send(i + 1)
         }
         channelF.close()
     }
 
-    launch {
+    launch(pool) {
         for (i in channelF) {
             channelG.send(i * 3)
         }
@@ -140,5 +142,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker49: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

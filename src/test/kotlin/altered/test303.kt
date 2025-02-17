@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test303
+import org.example.altered.test303.RunChecker303.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,11 +47,11 @@ class ChannelManager {
     val channel3 = Channel<Int>()
     val channel4 = Channel<Int>(5)
 
-    fun sendToChannel1(value: Int) = runBlocking {
+    fun sendToChannel1(value: Int) = runBlocking(pool) {
         channel1.send(value)
     }
 
-    fun receiveFromChannel1(): Int = runBlocking {
+    fun receiveFromChannel1(): Int = runBlocking(pool) {
         channel1.receive()
     }
 }
@@ -58,12 +60,12 @@ class Processor1 {
     val channel5 = Channel<Int>()
     val channel6 = Channel<Int>(5)
 
-    fun processAndSend(channel: Channel<Int>, value: Int) = runBlocking {
+    fun processAndSend(channel: Channel<Int>, value: Int) = runBlocking(pool) {
         val processedValue = value * 2
         channel.send(processedValue)
     }
 
-    fun receiveProcessAndSend(source: Channel<Int>, destination: Channel<Int>) = runBlocking {
+    fun receiveProcessAndSend(source: Channel<Int>, destination: Channel<Int>) = runBlocking(pool) {
         val receivedValue = source.receive()
         destination.send(receivedValue + 3)
     }
@@ -73,14 +75,14 @@ class Processor2 {
     val channel7 = Channel<Int>()
     val channel8 = Channel<Int>(5)
 
-    fun receiveAndProcess(channel: Channel<Int>): Int = runBlocking {
+    fun receiveAndProcess(channel: Channel<Int>): Int = runBlocking(pool) {
         val value = channel.receive()
         value + 5
     }
 }
 
-fun runFirstCoroutine(manager: ChannelManager, processor1: Processor1) = runBlocking {
-    launch {
+fun runFirstCoroutine(manager: ChannelManager, processor1: Processor1) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..5) {
             processor1.processAndSend(manager.channel2, i)
             processor1.receiveProcessAndSend(manager.channel2, manager.channel4)
@@ -88,8 +90,8 @@ fun runFirstCoroutine(manager: ChannelManager, processor1: Processor1) = runBloc
     }
 }
 
-fun runSecondCoroutine(manager: ChannelManager, processor2: Processor2) = runBlocking {
-    launch {
+fun runSecondCoroutine(manager: ChannelManager, processor2: Processor2) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..5) {
             manager.sendToChannel1(i)
             processor2.receiveAndProcess(manager.channel1)
@@ -97,7 +99,7 @@ fun runSecondCoroutine(manager: ChannelManager, processor2: Processor2) = runBlo
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val manager = ChannelManager()
     val processor1 = Processor1()
     val processor2 = Processor2()
@@ -107,5 +109,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker303: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

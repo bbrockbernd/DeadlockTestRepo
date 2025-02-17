@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test244
+import org.example.altered.test244.RunChecker244.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -88,14 +90,14 @@ fun createConsumers(channels: List<Channel<*>>): List<Consumer1> {
 }
 
 class Runner(private val producers: List<Pair<Producer1, Producer2>>, private val consumers: List<Consumer1>) {
-    fun runCoroutines() = runBlocking {
-        launch {
+    fun runCoroutines() = runBlocking(pool) {
+        launch(pool) {
             producers[0].first.produce()
         }
-        launch {
+        launch(pool) {
             producers[0].second.produce()
         }
-        launch {
+        launch(pool) {
             consumers[0].consumeAndForward()
         }
     }
@@ -110,5 +112,10 @@ fun main(): Unit{
 }
 
 class RunChecker244: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

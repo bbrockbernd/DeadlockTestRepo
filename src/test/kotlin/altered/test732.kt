@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test732
+import org.example.altered.test732.RunChecker732.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -50,21 +52,26 @@ suspend fun processChannels(ch1: Channel<Int>, ch2: Channel<Int>, ch3: Channel<I
     println("Final value: ${ch5.receive()}")
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val ch1 = Channel<Int>(1)
     val ch2 = Channel<Int>(1)
     val ch3 = Channel<Int>(1)
     val ch4 = Channel<Int>(1)
     val ch5 = Channel<Int>(1)
 
-    launch { processChannels(ch1, ch2, ch3, ch4, ch5) }
-    launch { ch1.send(2) }
-    launch { println("Channel 2 received: ${ch2.receive()}") }
-    launch { println("Channel 4 processed: ${ch4.receive()}") }
-    launch { ch5.send(7) }
+    launch(pool) { processChannels(ch1, ch2, ch3, ch4, ch5) }
+    launch(pool) { ch1.send(2) }
+    launch(pool) { println("Channel 2 received: ${ch2.receive()}") }
+    launch(pool) { println("Channel 4 processed: ${ch4.receive()}") }
+    launch(pool) { ch5.send(7) }
 }
 
 
 class RunChecker732: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

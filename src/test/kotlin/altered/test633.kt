@@ -36,50 +36,57 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test633
+import org.example.altered.test633.RunChecker633.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun producer(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
-    launch {
+fun producer(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         channel1.send(1)
         channel2.send(2)
     }
 }
 
-fun consumer(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking {
-    launch {
+fun consumer(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val received = channel2.receive()
         channel3.send(received)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
 
-    launch {
+    launch(pool) {
         producer(channel1, channel2)
     }
 
-    launch {
+    launch(pool) {
         consumer(channel2, channel3)
     }
 
-    launch {
+    launch(pool) {
         val receivedFromChannel1 = channel1.receive()
         println("Received from Channel 1: $receivedFromChannel1")
         // Attempt to send to channel3
         channel3.send(receivedFromChannel1)
     }
 
-    launch {
+    launch(pool) {
         val receivedFromChannel3 = channel3.receive()
         println("Received from Channel 3: $receivedFromChannel3")
     }
 }
 
 class RunChecker633: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

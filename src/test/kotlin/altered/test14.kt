@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test14
+import org.example.altered.test14.RunChecker14.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -50,14 +52,14 @@ class ChannelHandler {
     val channelH = Channel<Int>()
 }
 
-fun functionOne(channelA: Channel<Int>, channelB: Channel<Int>) = runBlocking {
+fun functionOne(channelA: Channel<Int>, channelB: Channel<Int>) = runBlocking(pool) {
     repeat(5) {
         channelA.send(1)
         channelB.receive()
     }
 }
 
-fun functionTwo(channelB: Channel<Int>, channelC: Channel<Int>, channelD: Channel<Int>) = runBlocking {
+fun functionTwo(channelB: Channel<Int>, channelC: Channel<Int>, channelD: Channel<Int>) = runBlocking(pool) {
     repeat(5) {
         channelB.send(1)
         val received = channelC.receive()
@@ -65,43 +67,43 @@ fun functionTwo(channelB: Channel<Int>, channelC: Channel<Int>, channelD: Channe
     }
 }
 
-fun functionThree(channelC: Channel<Int>, channelF: Channel<Int>) = runBlocking {
+fun functionThree(channelC: Channel<Int>, channelF: Channel<Int>) = runBlocking(pool) {
     repeat(5) {
         val value = channelC.receive()
         channelF.send(value)
     }
 }
 
-fun functionFour(channelD: Channel<Int>, channelE: Channel<Int>) = runBlocking {
+fun functionFour(channelD: Channel<Int>, channelE: Channel<Int>) = runBlocking(pool) {
     repeat(5) {
         val received = channelD.receive()
         channelE.send(received)
     }
 }
 
-fun functionFive(channelE: Channel<Int>, channelG: Channel<Int>) = runBlocking {
+fun functionFive(channelE: Channel<Int>, channelG: Channel<Int>) = runBlocking(pool) {
     repeat(5) {
         val received = channelE.receive()
         channelG.send(received)
     }
 }
 
-fun functionSix(channelG: Channel<Int>, channelH: Channel<Int>) = runBlocking {
+fun functionSix(channelG: Channel<Int>, channelH: Channel<Int>) = runBlocking(pool) {
     repeat(5) {
         val received = channelG.receive()
         channelH.send(received)
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val handler = ChannelHandler()
 
-    launch { functionOne(handler.channelA, handler.channelB) }
-    launch { functionTwo(handler.channelB, handler.channelC, handler.channelD) }
-    launch { functionThree(handler.channelC, handler.channelF) }
-    launch { functionFour(handler.channelD, handler.channelE) }
-    launch { functionFive(handler.channelE, handler.channelG) }
-    launch { functionSix(handler.channelG, handler.channelH) }
+    launch(pool) { functionOne(handler.channelA, handler.channelB) }
+    launch(pool) { functionTwo(handler.channelB, handler.channelC, handler.channelD) }
+    launch(pool) { functionThree(handler.channelC, handler.channelF) }
+    launch(pool) { functionFour(handler.channelD, handler.channelE) }
+    launch(pool) { functionFive(handler.channelE, handler.channelG) }
+    launch(pool) { functionSix(handler.channelG, handler.channelH) }
 
     coroutineScope {
         repeat(5) {
@@ -115,5 +117,10 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker14: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

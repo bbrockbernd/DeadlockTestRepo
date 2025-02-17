@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test161
+import org.example.altered.test161.RunChecker161.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -73,33 +75,38 @@ class MiddleMan(private val inputChannel: Channel<Data>, private val outputChann
     }
 }
 
-fun channelOperation1(channel1: Channel<Data>, channel2: Channel<Data>, middleMan: MiddleMan) = runBlocking {
+fun channelOperation1(channel1: Channel<Data>, channel2: Channel<Data>, middleMan: MiddleMan) = runBlocking(pool) {
     val producer1 = Producer1(channel1)
     val consumer1 = Consumer1(channel2)
     
-    launch { producer1.produce() }
-    launch { middleMan.transfer() }
-    launch { consumer1.consume() }
+    launch(pool) { producer1.produce() }
+    launch(pool) { middleMan.transfer() }
+    launch(pool) { consumer1.consume() }
 }
 
-fun channelOperation2(channel1: Channel<Data>, channel2: Channel<Data>, middleMan: MiddleMan) = runBlocking {
+fun channelOperation2(channel1: Channel<Data>, channel2: Channel<Data>, middleMan: MiddleMan) = runBlocking(pool) {
     val producer2 = Producer2(channel2)
     val consumer2 = Consumer2(channel1)
 
-    launch { producer2.produce() }
-    launch { middleMan.transfer() }
-    launch { consumer2.consume() }
+    launch(pool) { producer2.produce() }
+    launch(pool) { middleMan.transfer() }
+    launch(pool) { consumer2.consume() }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Data>()
     val channel2 = Channel<Data>()
     val middleMan = MiddleMan(channel1, channel2)
     
-    launch { channelOperation1(channel1, channel2, middleMan) }
-    launch { channelOperation2(channel1, channel2, middleMan) }
+    launch(pool) { channelOperation1(channel1, channel2, middleMan) }
+    launch(pool) { channelOperation2(channel1, channel2, middleMan) }
 }
 
 class RunChecker161: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

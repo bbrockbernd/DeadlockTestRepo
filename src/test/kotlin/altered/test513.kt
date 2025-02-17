@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test513
+import org.example.altered.test513.RunChecker513.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -81,7 +83,7 @@ suspend fun startConsumeAB(consumer: ConsumerAB) {
     consumer.consumeAB()
 }
 
-fun launchProducersAndConsumers() = runBlocking {
+fun launchProducersAndConsumers() = runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
 
@@ -90,13 +92,13 @@ fun launchProducersAndConsumers() = runBlocking {
     val consumer = ConsumerAB(channelA, channelB)
 
     // Start coroutines
-    launch { startProduceA(producerA) }
-    launch { startProduceB(producerB) }
-    launch { startConsumeAB(consumer) }
+    launch(pool) { startProduceA(producerA) }
+    launch(pool) { startProduceB(producerB) }
+    launch(pool) { startConsumeAB(consumer) }
     
     // Additional coroutines that consume but do not produce, leading to potential deadlock
-    launch { println("Additional consumer A: ${channelA.receive()}") }
-    launch { println("Additional consumer B: ${channelB.receive()}") }
+    launch(pool) { println("Additional consumer A: ${channelA.receive()}") }
+    launch(pool) { println("Additional consumer B: ${channelB.receive()}") }
 }
 
 fun main(): Unit{
@@ -104,5 +106,10 @@ fun main(): Unit{
 }
 
 class RunChecker513: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,12 +36,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test781
+import org.example.altered.test781.RunChecker781.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
 fun function1(channel1: SendChannel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         repeat(5) {
             channel1.send(it)
         }
@@ -50,7 +52,7 @@ fun function1(channel1: SendChannel<Int>) {
 }
 
 fun function2(channel1: ReceiveChannel<Int>, channel2: SendChannel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (value in channel1) {
             channel2.send(value * 2)
         }
@@ -59,7 +61,7 @@ fun function2(channel1: ReceiveChannel<Int>, channel2: SendChannel<Int>) {
 }
 
 fun function3(channel2: ReceiveChannel<Int>, channel3: SendChannel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (value in channel2) {
             channel3.send(value + 1)
         }
@@ -68,14 +70,14 @@ fun function3(channel2: ReceiveChannel<Int>, channel3: SendChannel<Int>) {
 }
 
 fun function4(channel3: ReceiveChannel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (value in channel3) {
             println("Received: $value")
         }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -89,5 +91,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker781: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

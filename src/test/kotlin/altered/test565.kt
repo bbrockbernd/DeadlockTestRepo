@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test565
+import org.example.altered.test565.RunChecker565.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -53,17 +55,17 @@ class ClassB(val channel: Channel<Int>) {
 }
 
 class DeadlockDetector {
-    fun detect() = runBlocking {
+    fun detect() = runBlocking(pool) {
         val channel = Channel<Int>()
 
         val classA = ClassA(channel)
         val classB = ClassB(channel)
 
-        launch {
+        launch(pool) {
             classA.send(1)
         }
 
-        launch {
+        launch(pool) {
             classB.receive()
         }
     }
@@ -75,5 +77,10 @@ fun main(): Unit{
 }
 
 class RunChecker565: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -9,7 +9,7 @@ abstract class RunCheckerBase {
     abstract fun block()
     @OptIn(ExperimentalModelCheckingAPI::class)
     @Test
-    fun GPMChecker(){
+    fun GPMChecker() {
         runConcurrentTest { block() }
     }
 }

@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test622
+import org.example.altered.test622.RunChecker622.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -48,12 +50,12 @@ class ChannelCoordinator {
     private val channelE = Channel<Long>()
 
     fun setup() {
-        runBlocking {
-            launch { sendToChannelA() }
-            launch { receiveFromChannelA() }
-            launch { sendToChannelB() }
-            launch { receiveFromChannelC() }
-            launch { sendAndReceiveChannelE() }
+        runBlocking(pool) {
+            launch(pool) { sendToChannelA() }
+            launch(pool) { receiveFromChannelA() }
+            launch(pool) { sendToChannelB() }
+            launch(pool) { receiveFromChannelC() }
+            launch(pool) { sendAndReceiveChannelE() }
         }
     }
 
@@ -91,5 +93,10 @@ fun main(): Unit{
 }
 
 class RunChecker622: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

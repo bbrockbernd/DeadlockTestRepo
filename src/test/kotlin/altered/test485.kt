@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test485
+import org.example.altered.test485.RunChecker485.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -77,7 +79,7 @@ class Aggregator(private val channel1: Channel<Int>, private val channel2: Chann
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -90,12 +92,12 @@ fun main(): Unit= runBlocking {
 
     val aggregator = Aggregator(channel1, channel3)
 
-    launch { producer1.produceData1() }
-    launch { producer2.produceData2() }
-    launch { consumer1.consumeData1() }
-    launch { consumer2.consumeData2() }
-    launch { aggregator.aggregateData() }
-    launch {
+    launch(pool) { producer1.produceData1() }
+    launch(pool) { producer2.produceData2() }
+    launch(pool) { consumer1.consumeData1() }
+    launch(pool) { consumer2.consumeData2() }
+    launch(pool) { aggregator.aggregateData() }
+    launch(pool) {
         repeat(5) {
             channel3.send(it) // Additional producer for channel3
         }
@@ -103,5 +105,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker485: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

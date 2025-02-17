@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test269
+import org.example.altered.test269.RunChecker269.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -77,8 +79,8 @@ val channel3 = Channel<Int>()
 val channel4 = Channel<Int>()
 
 fun function1() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val producerA = ProducerA(channel1)
             producerA.produce()
         }
@@ -86,8 +88,8 @@ fun function1() {
 }
 
 fun function2() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val consumerA = ConsumerA(channel1)
             consumerA.consume()
         }
@@ -95,8 +97,8 @@ fun function2() {
 }
 
 fun function3() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val producerB = ProducerB(channel2)
             producerB.produce()
         }
@@ -104,8 +106,8 @@ fun function3() {
 }
 
 fun function4() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val consumerB = ConsumerB(channel2)
             consumerB.consume()
         }
@@ -113,8 +115,8 @@ fun function4() {
 }
 
 fun function5() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             for (i in 1..3) {
                 channel3.send(i)
             }
@@ -123,8 +125,8 @@ fun function5() {
 }
 
 fun function6() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             for (i in 1..3) {
                 println("function6 received: ${channel3.receive()}")
             }
@@ -133,21 +135,21 @@ fun function6() {
 }
 
 fun main(): Unit{
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             function1()  // ProducerA -> channel1
             function2()  // ConsumerA <- channel1
         }
-        launch {
+        launch(pool) {
             function3()  // ProducerB -> channel2
             function4()  // ConsumerB <- channel2
         }
-        launch {
+        launch(pool) {
             for (i in 7..10) {
                 channel4.send(i) // Deadlock here, no receiver on channel4
             }
         }
-        launch {
+        launch(pool) {
             delay(1000) // Force timeout to simulate attempted receive on channel4; never happens
         }
     }
@@ -156,5 +158,10 @@ fun main(): Unit{
 }
 
 class RunChecker269: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

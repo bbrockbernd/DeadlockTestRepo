@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test128
+import org.example.altered.test128.RunChecker128.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -74,18 +76,18 @@ class Orchestrator(private val ch1: Channel<Data1>, private val ch3: Channel<Dat
 }
 
 fun func1(ch1: Channel<Data1>, ch2: Channel<Data2>) {
-    runBlocking {
+    runBlocking(pool) {
         val processor1 = Processor1(ch1, ch2)
-        launch { processor1.process() }
+        launch(pool) { processor1.process() }
     }
 }
 
 fun func2(ch2: Channel<Data2>, ch3: Channel<Data3>, ch1: Channel<Data1>) {
-    runBlocking {
+    runBlocking(pool) {
         val processor2 = Processor2(ch2, ch3)
         val orchestrator = Orchestrator(ch1, ch3)
-        launch { processor2.process() }
-        launch { orchestrator.orchestrate() }
+        launch(pool) { processor2.process() }
+        launch(pool) { orchestrator.orchestrate() }
     }
 }
 
@@ -99,5 +101,10 @@ fun main(): Unit{
 }
 
 class RunChecker128: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

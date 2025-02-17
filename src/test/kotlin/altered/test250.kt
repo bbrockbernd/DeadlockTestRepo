@@ -35,14 +35,16 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test250
+import org.example.altered.test250.RunChecker250.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class Producer(val channel: Channel<Int>) {
     fun produce() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 for (i in 1..5) {
                     channel.send(i)
                 }
@@ -54,7 +56,7 @@ class Producer(val channel: Channel<Int>) {
 class Consumer(val channel: Channel<Int>) {
     suspend fun consume(name: String) {
         coroutineScope {
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val received = channel.receive()
                     println("Consumer $name received: $received")
@@ -67,7 +69,7 @@ class Consumer(val channel: Channel<Int>) {
 class Processor(val inputChannel: Channel<Int>, val outputChannel: Channel<Int>) {
     suspend fun process() {
         coroutineScope {
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val received = inputChannel.receive()
                     outputChannel.send(received * 2)
@@ -96,25 +98,25 @@ fun mainFunction() {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             producer1Function(channel1)
         }
 
-        launch {
+        launch(pool) {
             producer2Function(channel1)
         }
 
-        launch {
+        launch(pool) {
             processorFunction(channel1, channel2)
         }
 
-        launch {
+        launch(pool) {
             val consumer1 = Consumer(channel2)
             consumer1.consume("1")
         }
 
-        launch {
+        launch(pool) {
             val consumer2 = Consumer(channel2)
             consumer2.consume("2")
         }
@@ -126,5 +128,10 @@ fun main(): Unit {
 }
 
 class RunChecker250: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

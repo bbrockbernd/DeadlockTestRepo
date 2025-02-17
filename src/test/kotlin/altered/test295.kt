@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test295
+import org.example.altered.test295.RunChecker295.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -76,12 +78,12 @@ class ClassE {
 
 suspend fun functionA(classA: ClassA, classB: ClassB) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (i in 1..5) {
                 classA.sendA(i)
             }
         }
-        launch {
+        launch(pool) {
             repeat(5) {
                 val value = classA.channelA.receive()
                 classB.sendB(value)
@@ -92,12 +94,12 @@ suspend fun functionA(classA: ClassA, classB: ClassB) {
 
 suspend fun functionB(classC: ClassC, classD: ClassD) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (i in 5 downTo 1) {
                 classC.sendC(i)
             }
         }
-        launch {
+        launch(pool) {
             repeat(5) {
                 val value = classC.channelC.receive()
                 classD.sendD(value)
@@ -108,7 +110,7 @@ suspend fun functionB(classC: ClassC, classD: ClassD) {
 
 suspend fun functionC(classA: ClassA, classE: ClassE) {
     coroutineScope {
-        launch {
+        launch(pool) {
             repeat(5) {
                 val value = classA.channelA.receive()
                 classE.sendE(value)
@@ -119,7 +121,7 @@ suspend fun functionC(classA: ClassA, classE: ClassE) {
 
 suspend fun functionD(classE: ClassE) {
     coroutineScope {
-        launch {
+        launch(pool) {
             repeat(5) {
                 val value = classE.channelE.receive()
                 println("Received from classE: $value")
@@ -128,22 +130,27 @@ suspend fun functionD(classE: ClassE) {
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val classA = ClassA()
     val classB = ClassB()
     val classC = ClassC()
     val classD = ClassD()
     val classE = ClassE()
 
-    launch { functionA(classA, classB) }
-    launch { functionB(classC, classD) }
-    launch { functionC(classA, classE) }
-    launch { functionD(classE) }
+    launch(pool) { functionA(classA, classB) }
+    launch(pool) { functionB(classC, classD) }
+    launch(pool) { functionC(classA, classE) }
+    launch(pool) { functionD(classE) }
     
     // Simulate other operations that keep the main coroutine running
     delay(1000L)
 }
 
 class RunChecker295: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

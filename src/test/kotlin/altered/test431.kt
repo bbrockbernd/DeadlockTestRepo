@@ -35,28 +35,30 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test431
+import org.example.altered.test431.RunChecker431.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 val firstChannel = Channel<Int>()
 val secondChannel = Channel<Int>()
 
-fun producer() = GlobalScope.launch {
+fun producer() = GlobalScope.launch(pool) {
     for (i in 1..5) {
         firstChannel.send(i)
     }
     firstChannel.close()
 }
 
-fun consumer() = GlobalScope.launch {
+fun consumer() = GlobalScope.launch(pool) {
     for (value in firstChannel) {
         process(value)
     }
     secondChannel.close()
 }
 
-fun process(value: Int) = GlobalScope.launch {
+fun process(value: Int) = GlobalScope.launch(pool) {
     val result = value * 2
     secondChannel.send(result)
 }
@@ -67,12 +69,17 @@ suspend fun displayResults() {
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     producer()
     consumer()
     displayResults()
 }
 
 class RunChecker431: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,45 +35,47 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test370
+import org.example.altered.test370.RunChecker370.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 fun functionA(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.send(1)
         }
     }
 }
 
 fun functionB(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel2.send(channel1.receive())
         }
     }
 }
 
 fun functionC(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.send(channel2.receive())
         }
     }
 }
 
 fun functionD(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel2.send(2)
         }
     }
 }
 
 fun functionE(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val result = channel1.receive()
             println("Function E received $result from channel1")
         }
@@ -81,8 +83,8 @@ fun functionE(channel1: Channel<Int>, channel2: Channel<Int>) {
 }
 
 fun functionF(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val result = channel2.receive()
             println("Function F received $result from channel2")
         }
@@ -90,16 +92,16 @@ fun functionF(channel1: Channel<Int>, channel2: Channel<Int>) {
 }
 
 fun functionG(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel1.send(3)
         }
     }
 }
 
 fun functionH(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val result = channel2.receive()
             println("Function H received $result from channel2")
         }
@@ -121,5 +123,10 @@ fun main(): Unit{
 }
 
 class RunChecker370: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

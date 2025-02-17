@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test80
+import org.example.altered.test80.RunChecker80.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -50,7 +52,7 @@ class Delta(val input: Channel<Int>, val output: Channel<Int>)
 class Echo(val input: Channel<Int>, val output: Channel<Int>)
 
 fun alphaFunction(alpha: Alpha) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 1..5) {
             alpha.input.send(i)
             val received = alpha.output.receive()
@@ -60,7 +62,7 @@ fun alphaFunction(alpha: Alpha) {
 }
 
 fun bravoFunction(bravo: Bravo) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 1..5) {
             val received = bravo.input.receive()
             bravo.output.send(received * 2)
@@ -70,7 +72,7 @@ fun bravoFunction(bravo: Bravo) {
 }
 
 fun charlieFunction(charlie: Charlie) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 1..5) {
             val received = charlie.input.receive()
             charlie.output.send(received + 1)
@@ -80,7 +82,7 @@ fun charlieFunction(charlie: Charlie) {
 }
 
 fun deltaFunction(delta: Delta) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 1..5) {
             val received = delta.input.receive()
             delta.output.send(received - 1)
@@ -90,7 +92,7 @@ fun deltaFunction(delta: Delta) {
 }
 
 fun echoFunction(echo: Echo) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 1..5) {
             val received = echo.input.receive()
             echo.output.send(received / 2)
@@ -124,7 +126,7 @@ fun initializeChannelsAndFunctions() {
 }
 
 fun finalFunction(input: Channel<Int>, finalOutput: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 1..5) {
             val received = input.receive()
             finalOutput.send(received + 10)
@@ -133,11 +135,16 @@ fun finalFunction(input: Channel<Int>, finalOutput: Channel<Int>) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     initializeChannelsAndFunctions()
     delay(2000)
 }
 
 class RunChecker80: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

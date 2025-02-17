@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test932
+import org.example.altered.test932.RunChecker932.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -63,18 +65,18 @@ class Tester {
 
     suspend fun startTest() {
         coroutineScope {
-            launch {
+            launch(pool) {
                 val sender = Sender(channelOne)
                 sender.sendMessages()
             }
-            launch {
+            launch(pool) {
                 val receiver = Receiver(channelTwo)
                 receiver.receiveMessages()
             }
         }
     }
 
-    fun execute() = runBlocking {
+    fun execute() = runBlocking(pool) {
         channelTwo.send("Direct")
         channelTwo.send("Message")
         startTest()
@@ -87,5 +89,10 @@ fun main(): Unit{
 }
 
 class RunChecker932: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

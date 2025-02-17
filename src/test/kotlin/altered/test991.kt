@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test991
+import org.example.altered.test991.RunChecker991.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -49,27 +51,27 @@ class ChannelHandler {
 }
 
 fun provideData(handler: ChannelHandler) {
-    runBlocking {
-        launch { handler.channel1.send(1) }
-        launch { handler.channel2.send(2) }
-        launch { handler.channel3.send("A") }
-        launch { handler.channel4.send("B") }
-        launch { handler.channel5.send(true) }
+    runBlocking(pool) {
+        launch(pool) { handler.channel1.send(1) }
+        launch(pool) { handler.channel2.send(2) }
+        launch(pool) { handler.channel3.send("A") }
+        launch(pool) { handler.channel4.send("B") }
+        launch(pool) { handler.channel5.send(true) }
     }
 }
 
 fun processData(handler: ChannelHandler): Int {
     var result = 0
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             result += handler.channel1.receive()
             result += handler.channel2.receive()
         }
-        launch {
+        launch(pool) {
             handler.channel3.receive()
             handler.channel4.receive()
         }
-        launch {
+        launch(pool) {
             handler.channel5.receive()
         }
     }
@@ -79,20 +81,20 @@ fun processData(handler: ChannelHandler): Int {
 suspend fun handleChannels(handler: ChannelHandler): Int {
     var sum = 0
     coroutineScope {
-        launch {
+        launch(pool) {
             sum += handler.channel1.receive()
             println("Received from channel1")
         }
-        launch {
+        launch(pool) {
             sum += handler.channel2.receive()
             println("Received from channel2")
         }
-        launch {
+        launch(pool) {
             handler.channel3.receive()
             handler.channel4.receive()
             println("Received Strings")
         }
-        launch {
+        launch(pool) {
             handler.channel5.receive()
             println("Received Boolean")
         }
@@ -102,8 +104,8 @@ suspend fun handleChannels(handler: ChannelHandler): Int {
 
 fun mainProcess(handler: ChannelHandler): Int {
     var sum = 0
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             sum += handleChannels(handler)
         }
     }
@@ -120,5 +122,10 @@ fun main(): Unit{
 }
 
 class RunChecker991: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test239
+import org.example.altered.test239.RunChecker239.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -54,8 +56,8 @@ val channel7 = Channel<Int>()
 val channel8 = Channel<Int>()
 
 fun func1(a: A) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             a.channel.send(1)
             val result = a.channel.receive()
         }
@@ -63,8 +65,8 @@ fun func1(a: A) {
 }
 
 fun func2(b: B) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             b.channel.send(2)
             val result = b.channel.receive()
         }
@@ -72,8 +74,8 @@ fun func2(b: B) {
 }
 
 fun func3(c: C) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             c.channel.send(3)
             val result = c.channel.receive()
         }
@@ -81,8 +83,8 @@ fun func3(c: C) {
 }
 
 fun func4(d: D) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             d.channel.send(4)
             val result = d.channel.receive()
         }
@@ -90,8 +92,8 @@ fun func4(d: D) {
 }
 
 fun func5(a: A, b: B) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             a.channel.send(5)
             val result = b.channel.receive()
         }
@@ -99,8 +101,8 @@ fun func5(a: A, b: B) {
 }
 
 fun func6(c: C, d: D) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             c.channel.send(6)
             val result = d.channel.receive()
         }
@@ -108,16 +110,16 @@ fun func6(c: C, d: D) {
 }
 
 fun func7(a: A, c: C) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             c.channel.send(a.channel.receive())
         }
     }
 }
 
 fun func8(b: B, d: D) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             d.channel.send(b.channel.receive())
         }
     }
@@ -140,5 +142,10 @@ fun main(): Unit{
 }
 
 class RunChecker239: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

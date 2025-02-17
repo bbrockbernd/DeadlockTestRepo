@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test878
+import org.example.altered.test878.RunChecker878.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -52,40 +54,45 @@ class Consumer(private val inChannel: Channel<Int>) {
     }
 }
 
-fun coroutine1(ch1: Channel<Int>, ch2: Channel<Int>) = runBlocking {
+fun coroutine1(ch1: Channel<Int>, ch2: Channel<Int>) = runBlocking(pool) {
     val producer = Producer(ch1)
-    launch { producer.produce() }
-    launch { producer.produce() }
+    launch(pool) { producer.produce() }
+    launch(pool) { producer.produce() }
 }
 
-fun coroutine2(ch3: Channel<Int>, ch4: Channel<Int>) = runBlocking {
+fun coroutine2(ch3: Channel<Int>, ch4: Channel<Int>) = runBlocking(pool) {
     val consumer1 = Consumer(ch3)
     val consumer2 = Consumer(ch4)
-    launch { consumer1.consume() }
-    launch { consumer2.consume() }
+    launch(pool) { consumer1.consume() }
+    launch(pool) { consumer2.consume() }
 }
 
-fun coroutine3(ch5: Channel<Int>, ch1: Channel<Int>) = runBlocking {
+fun coroutine3(ch5: Channel<Int>, ch1: Channel<Int>) = runBlocking(pool) {
     val producer = Producer(ch5)
     val consumer = Consumer(ch1)
-    launch { producer.produce() }
-    launch { consumer.consume() }
+    launch(pool) { producer.produce() }
+    launch(pool) { consumer.consume() }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val ch1 = Channel<Int>()
     val ch2 = Channel<Int>()
     val ch3 = Channel<Int>()
     val ch4 = Channel<Int>()
     val ch5 = Channel<Int>()
     
-    launch { coroutine1(ch1, ch2) }
-    launch { coroutine2(ch3, ch4) }
-    launch { coroutine3(ch5, ch1) }
+    launch(pool) { coroutine1(ch1, ch2) }
+    launch(pool) { coroutine2(ch3, ch4) }
+    launch(pool) { coroutine3(ch5, ch1) }
 
     // Deadlock arises since the channels and coroutines are creating circular dependencies which can't resolve
 }
 
 class RunChecker878: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

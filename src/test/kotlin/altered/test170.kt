@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test170
+import org.example.altered.test170.RunChecker170.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -61,7 +63,7 @@ fun setupPipeline(
     outputChannel: Channel<Int>,
     errorChannel: Channel<String>
 ) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         try {
             val sum = DataProcessor().processData(inputChannel)
             outputChannel.send(sum)
@@ -85,13 +87,13 @@ fun startCoroutine(
     outputChannel: Channel<Int>,
     errorChannel: Channel<String>
 ) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         sendData(inputChannel)
     }
     setupPipeline(inputChannel, outputChannel, errorChannel)
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val inputChannel = Channel<Int>()
     val outputChannel = Channel<Int>()
     val errorChannel = Channel<String>()
@@ -101,5 +103,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker170: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

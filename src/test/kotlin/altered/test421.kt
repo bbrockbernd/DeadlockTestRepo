@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test421
+import org.example.altered.test421.RunChecker421.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -54,76 +56,76 @@ class ClassC {
     val channel6 = Channel<Float>()
 }
 
-fun functionA(classA: ClassA) = runBlocking {
+fun functionA(classA: ClassA) = runBlocking(pool) {
     val channel7 = Channel<Int>()
     val channel8 = Channel<Unit>()
 
-    launch {
+    launch(pool) {
         classA.channel1.send(1)
         classA.channel2.receive()
     }
     
-    launch {
+    launch(pool) {
         channel7.send(classA.channel1.receive())
         classA.channel2.send(2)
     }
     
-    launch {
+    launch(pool) {
         channel8.receive()
     }
     
-    launch {
+    launch(pool) {
         channel7.close()
     }
 }
 
-fun functionB(classB: ClassB) = runBlocking {
+fun functionB(classB: ClassB) = runBlocking(pool) {
     val channel7 = Channel<String>()
     val channel8 = Channel<Double>()
 
-    launch {
+    launch(pool) {
         classB.channel3.send("test")
         classB.channel4.receive()
     }
     
-    launch {
+    launch(pool) {
         channel7.send(classB.channel3.receive())
         classB.channel4.send(3.14)
     }
     
-    launch {
+    launch(pool) {
         channel8.receive()
     }
     
-    launch {
+    launch(pool) {
         channel7.close()
     }
 }
 
-fun functionC(classC: ClassC) = runBlocking {
+fun functionC(classC: ClassC) = runBlocking(pool) {
     val channel7 = Channel<Long>()
     val channel8 = Channel<Float>()
 
-    launch {
+    launch(pool) {
         classC.channel5.send(5L)
         classC.channel6.receive()
     }
     
-    launch {
+    launch(pool) {
         channel7.send(classC.channel5.receive())
         classC.channel6.send(3.14f)
     }
     
-    launch {
+    launch(pool) {
         channel8.receive()
     }
     
-    launch {
+    launch(pool) {
         channel7.close()
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val classA = ClassA()
     val classB = ClassB()
     val classC = ClassC()
@@ -134,5 +136,10 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker421: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

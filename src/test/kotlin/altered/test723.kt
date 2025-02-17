@@ -36,12 +36,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test723
+import org.example.altered.test723.RunChecker723.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun task1(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
-    launch {
+fun task1(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         repeat(5) {
             channel1.send(it)
             delay(50)
@@ -49,7 +51,7 @@ fun task1(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
         channel1.close()
     }
 
-    launch {
+    launch(pool) {
         for (item in channel1) {
             channel2.send(item * 2)
         }
@@ -57,14 +59,14 @@ fun task1(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
     }
 }
 
-fun task2(channel3: Channel<String>, channel4: Channel<String>) = runBlocking {
-    launch {
+fun task2(channel3: Channel<String>, channel4: Channel<String>) = runBlocking(pool) {
+    launch(pool) {
         val input = "Kotlin"
         channel3.send(input)
         channel3.close()
     }
 
-    launch {
+    launch(pool) {
         for (item in channel3) {
             channel4.send(item.reversed())
         }
@@ -72,33 +74,38 @@ fun task2(channel3: Channel<String>, channel4: Channel<String>) = runBlocking {
     }
 }
 
-fun task3(channel4: Channel<String>, channel5: Channel<Int>) = runBlocking {
-    launch {
+fun task3(channel4: Channel<String>, channel5: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (item in channel4) {
             channel5.send(item.length)
         }
         channel5.close()
     }
 
-    launch {
+    launch(pool) {
         for (item in channel5) {
             println("Processed length: $item")
         }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<String>()
     val channel4 = Channel<String>()
     val channel5 = Channel<Int>()
 
-    launch { task1(channel1, channel2) }
-    launch { task2(channel3, channel4) }
-    launch { task3(channel4, channel5) }
+    launch(pool) { task1(channel1, channel2) }
+    launch(pool) { task2(channel3, channel4) }
+    launch(pool) { task3(channel4, channel5) }
 }
 
 class RunChecker723: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

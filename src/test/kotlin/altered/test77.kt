@@ -35,12 +35,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test77
+import org.example.altered.test77.RunChecker77.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
 fun producer1(channelA: Channel<Int>, channelB: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         repeat(5) {
             channelA.send(it)
             delay(100L)
@@ -52,7 +54,7 @@ fun producer1(channelA: Channel<Int>, channelB: Channel<Int>) {
 }
 
 fun producer2(channelC: Channel<Int>, channelD: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         repeat(5) {
             channelC.send(it + 5)
             delay(150L)
@@ -63,7 +65,7 @@ fun producer2(channelC: Channel<Int>, channelD: Channel<Int>) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
     val channelC = Channel<Int>()
@@ -71,15 +73,15 @@ fun main(): Unit= runBlocking {
     val channelE = Channel<Int>()
     val channelF = Channel<Int>()
 
-    launch {
+    launch(pool) {
         producer1(channelA, channelB)
     }
     
-    launch {
+    launch(pool) {
         producer2(channelC, channelD)
     }
 
-    launch {
+    launch(pool) {
         for (value in channelA) {
             println("ChannelA received: $value")
         }
@@ -90,7 +92,7 @@ fun main(): Unit= runBlocking {
         channelE.close()
     }
 
-    launch {
+    launch(pool) {
         for (value in channelC) {
             println("ChannelC received: $value")
         }
@@ -101,13 +103,13 @@ fun main(): Unit= runBlocking {
         channelF.close()
     }
 
-    launch {
+    launch(pool) {
         for (value in channelE) {
             println("ChannelE processed: $value")
         }
     }
 
-    launch {
+    launch(pool) {
         for (value in channelF) {
             println("ChannelF processed: $value")
         }
@@ -115,5 +117,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker77: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

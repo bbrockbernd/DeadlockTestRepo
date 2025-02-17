@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test365
+import org.example.altered.test365.RunChecker365.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -92,23 +94,28 @@ suspend fun function3(a: A, c: C) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val a = A()
     val b = B(a)
     val c = C(a)
 
-    launch { function1(a) }
-    launch { function1(a) }
-    launch { function2(a, b) }
-    launch { function2(a, b) }
-    launch { function3(a, c) }
-    launch { function3(a, c) }
-    launch { function1(a) }
-    launch { function2(a, b) }
+    launch(pool) { function1(a) }
+    launch(pool) { function1(a) }
+    launch(pool) { function2(a, b) }
+    launch(pool) { function2(a, b) }
+    launch(pool) { function3(a, c) }
+    launch(pool) { function3(a, c) }
+    launch(pool) { function1(a) }
+    launch(pool) { function2(a, b) }
 
     delay(1000L) // Just to keep the application alive for a little while
 }
 
 class RunChecker365: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

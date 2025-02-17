@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test629
+import org.example.altered.test629.RunChecker629.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,7 +47,7 @@ class Processor {
     val channelB = Channel<Int>(1)
 
     suspend fun processA() {
-        val value = withContext(Dispatchers.Default) { 42 }
+        val value = withContext(pool) { 42 }
         channelA.send(value)
     }
 
@@ -66,28 +68,33 @@ class Aggregator {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val processor = Processor()
     val aggregator = Aggregator()
     val channelE = Channel<Int>(1)
 
-    launch { processor.processA() }
-    launch { processor.processB() }
-    launch {
+    launch(pool) { processor.processA() }
+    launch(pool) { processor.processB() }
+    launch(pool) {
         aggregator.channelC.send(10)
         aggregator.channelD.send(15)
         aggregator.aggregate()
     }
-    launch {
+    launch(pool) {
         val result = aggregator.channelC.receive()
         channelE.send(result)
     }
-    launch {
+    launch(pool) {
         val finalResult = channelE.receive()
         println("Final result: $finalResult")
     }
 }
 
 class RunChecker629: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

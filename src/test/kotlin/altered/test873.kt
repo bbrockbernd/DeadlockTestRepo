@@ -36,12 +36,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test873
+import org.example.altered.test873.RunChecker873.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 fun producer1(channel: Channel<Int>, nextChannel: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (x in 1..5) {
             channel.send(x)
             nextChannel.send(x)
@@ -50,7 +52,7 @@ fun producer1(channel: Channel<Int>, nextChannel: Channel<Int>) {
 }
 
 fun producer2(channel: Channel<Int>, nextChannel: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (x in 6..10) {
             channel.send(x)
             nextChannel.send(x)
@@ -59,7 +61,7 @@ fun producer2(channel: Channel<Int>, nextChannel: Channel<Int>) {
 }
 
 fun processor(channel: Channel<Int>, nextChannel: Channel<Int>, resultChannel: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         repeat(5) {
             val received = channel.receive()
             nextChannel.send(received + 10)
@@ -69,7 +71,7 @@ fun processor(channel: Channel<Int>, nextChannel: Channel<Int>, resultChannel: C
 }
 
 fun mainProcessor(channel1: Channel<Int>, channel2: Channel<Int>, resultChannel: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         repeat(10) {
             val received1 = channel1.receive()
             val received2 = channel2.receive()
@@ -78,7 +80,7 @@ fun mainProcessor(channel1: Channel<Int>, channel2: Channel<Int>, resultChannel:
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -96,5 +98,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker873: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

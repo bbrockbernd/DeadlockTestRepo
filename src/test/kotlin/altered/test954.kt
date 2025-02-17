@@ -36,40 +36,42 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test954
+import org.example.altered.test954.RunChecker954.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 fun function1(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         val value = channel1.receive()
         channel2.send(value)
     }
 }
 
 fun function2(channel2: Channel<Int>, channel3: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         val value = channel2.receive()
         channel3.send(value)
     }
 }
 
 fun function3(channel3: Channel<Int>, channel4: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         val value = channel3.receive()
         channel4.send(value)
     }
 }
 
 fun function4(channel4: Channel<Int>, channel5: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         val value = channel4.receive()
         channel5.send(value)
     }
 }
 
 fun function5(channel5: Channel<Int>, channel1: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         val value = channel5.receive()
         channel1.send(value)
     }
@@ -82,17 +84,22 @@ fun main(): Unit{
     val channel4 = Channel<Int>()
     val channel5 = Channel<Int>()
 
-    runBlocking {
-        launch { function1(channel1, channel2) }
-        launch { function2(channel2, channel3) }
-        launch { function3(channel3, channel4) }
-        launch { function4(channel4, channel5) }
-        launch { function5(channel5, channel1) }
+    runBlocking(pool) {
+        launch(pool) { function1(channel1, channel2) }
+        launch(pool) { function2(channel2, channel3) }
+        launch(pool) { function3(channel3, channel4) }
+        launch(pool) { function4(channel4, channel5) }
+        launch(pool) { function5(channel5, channel1) }
 
         channel1.send(42)
     }
 }
 
 class RunChecker954: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

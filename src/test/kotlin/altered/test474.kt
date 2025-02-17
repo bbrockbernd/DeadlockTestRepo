@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test474
+import org.example.altered.test474.RunChecker474.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -91,33 +93,33 @@ suspend fun workerDFunc(workerD: WorkerD, workerA: WorkerA) {
     println("WorkerD received: $received")
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val workerA = WorkerA()
     val workerB = WorkerB()
     val workerC = WorkerC()
     val workerD = WorkerD()
 
-    launch { workerAFunc(workerA, workerB) }
-    launch { workerBFunc(workerB, workerC) }
-    launch { workerCFunc(workerC, workerD) }
-    launch { workerDFunc(workerD, workerA) }
+    launch(pool) { workerAFunc(workerA, workerB) }
+    launch(pool) { workerBFunc(workerB, workerC) }
+    launch(pool) { workerCFunc(workerC, workerD) }
+    launch(pool) { workerDFunc(workerD, workerA) }
 
-    launch {
+    launch(pool) {
         val received = workerA.receiveA()
         println("Main received from WorkerA: $received")
     }
 
-    launch {
+    launch(pool) {
         val received = workerB.receiveB()
         println("Main received from WorkerB: $received")
     }
 
-    launch {
+    launch(pool) {
         val received = workerC.receiveC()
         println("Main received from WorkerC: $received")
     }
 
-    launch {
+    launch(pool) {
         val received = workerD.receiveD()
         println("Main received from WorkerD: $received")
     }
@@ -125,5 +127,10 @@ fun main(): Unit= runBlocking {
 
 
 class RunChecker474: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test139
+import org.example.altered.test139.RunChecker139.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -73,33 +75,33 @@ class C(val ch1: Channel<Int>, val ch2: Channel<String>, val ch3: Channel<Double
     }
 }
 
-fun fun1(channel: Channel<Int>) = runBlocking {
-    launch {
+fun fun1(channel: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         repeat(5) { channel.send(it) }
         channel.close()
     }
 }
 
-fun fun2(channel: Channel<Int>) = runBlocking {
-    launch {
+fun fun2(channel: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (x in channel) println("Received $x")
     }
 }
 
-fun fun3(channel: Channel<Double>) = runBlocking {
-    launch {
+fun fun3(channel: Channel<Double>) = runBlocking(pool) {
+    launch(pool) {
         repeat(5) { channel.send(it * 1.1) }
         channel.close()
     }
 }
 
-fun fun4(channel: Channel<Double>) = runBlocking {
-    launch {
+fun fun4(channel: Channel<Double>) = runBlocking(pool) {
+    launch(pool) {
         for (x in channel) println("Received $x")
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val ch1 = Channel<Int>()
     val ch2 = Channel<String>()
     val ch3 = Channel<Double>()
@@ -107,13 +109,13 @@ fun main(): Unit= runBlocking {
     val b = B(ch3)
     val c = C(ch1, ch2, ch3)
 
-    val job1 = launch { a.sendIntA(10) }
-    val job2 = launch { a.sendStringA("Hello") }
-    val job3 = launch { c.receiveIntC() }
-    val job4 = launch { c.receiveStringC() }
-    val job5 = launch { c.sendDoubleC(2.5) }
-    val job6 = launch { b.receiveDoubleB() }
-    val job7 = launch { b.sendDoubleB(3.14) }
+    val job1 = launch(pool) { a.sendIntA(10) }
+    val job2 = launch(pool) { a.sendStringA("Hello") }
+    val job3 = launch(pool) { c.receiveIntC() }
+    val job4 = launch(pool) { c.receiveStringC() }
+    val job5 = launch(pool) { c.sendDoubleC(2.5) }
+    val job6 = launch(pool) { b.receiveDoubleB() }
+    val job7 = launch(pool) { b.sendDoubleB(3.14) }
 
     job1.join()
     job2.join()
@@ -130,5 +132,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker139: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

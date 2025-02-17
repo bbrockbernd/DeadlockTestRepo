@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test997
+import org.example.altered.test997.RunChecker997.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -72,21 +74,21 @@ class Consumer(private val inChannel: Channel<Int>) {
 
 fun startProducer(channel: Channel<Int>) {
     val producer = Producer(channel)
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         producer.produce()
     }
 }
 
 fun startProcessor(inChannel: Channel<Int>, outChannel: Channel<Int>) {
     val processor = Processor(inChannel, outChannel)
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         processor.process()
     }
 }
 
 fun startConsumer(channel: Channel<Int>, name: String) {
     val consumer = Consumer(channel)
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         consumer.consume(name)
     }
 }
@@ -106,5 +108,10 @@ fun main(): Unit= runBlocking<Unit> {
 }
 
 class RunChecker997: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

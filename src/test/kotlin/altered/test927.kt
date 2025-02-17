@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test927
+import org.example.altered.test927.RunChecker927.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -44,15 +46,15 @@ class ClassA {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
 
-    fun funcA() = runBlocking {
-        launch {
+    fun funcA() = runBlocking(pool) {
+        launch(pool) {
             val result = channelA.receive()
             println("Received in funcA: $result")
         }
     }
 
-    fun funcB() = runBlocking {
-        launch {
+    fun funcB() = runBlocking(pool) {
+        launch(pool) {
             channelB.send(1)
             println("Sent in funcB")
         }
@@ -64,8 +66,8 @@ class ClassB {
     val channelD = Channel<Int>()
     val channelE = Channel<Int>()
 
-    fun funcC() = runBlocking {
-        launch {
+    fun funcC() = runBlocking(pool) {
+        launch(pool) {
             val result = channelC.receive()
             println("Received in funcC: $result")
             channelD.send(result)
@@ -73,8 +75,8 @@ class ClassB {
         }
     }
 
-    fun funcD() = runBlocking {
-        launch {
+    fun funcD() = runBlocking(pool) {
+        launch(pool) {
             val result = channelD.receive()
             println("Received in funcD: $result")
             channelE.send(result)
@@ -83,23 +85,23 @@ class ClassB {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val classA = ClassA()
     val classB = ClassB()
 
-    val job1 = launch {
+    val job1 = launch(pool) {
         classA.funcA()
     }
 
-    val job2 = launch {
+    val job2 = launch(pool) {
         classA.funcB()
     }
 
-    val job3 = launch {
+    val job3 = launch(pool) {
         classB.funcC()
     }
 
-    val job4 = launch {
+    val job4 = launch(pool) {
         classB.funcD()
     }
 
@@ -116,5 +118,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker927: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

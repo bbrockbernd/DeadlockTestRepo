@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test52
+import org.example.altered.test52.RunChecker52.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -63,23 +65,23 @@ class Consumer(val input: Channel<Int>) {
     }
 }
 
-fun producerFunction1(producer: Producer) = runBlocking {
+fun producerFunction1(producer: Producer) = runBlocking(pool) {
     producer.produceOne()
 }
 
-fun producerFunction2(producer: Producer) = runBlocking {
+fun producerFunction2(producer: Producer) = runBlocking(pool) {
     producer.produceTwo()
 }
 
-fun consumerFunction1(consumer: Consumer) = runBlocking {
+fun consumerFunction1(consumer: Consumer) = runBlocking(pool) {
     consumer.consumeOne()
 }
 
-fun consumerFunction2(consumer: Consumer) = runBlocking {
+fun consumerFunction2(consumer: Consumer) = runBlocking(pool) {
     consumer.consumeTwo()
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -91,29 +93,34 @@ fun main(): Unit= runBlocking {
     val consumer1 = Consumer(channel3)
     val consumer2 = Consumer(channel4)
     
-    launch {
+    launch(pool) {
         producerFunction1(producer1)
     }
     
-    launch {
+    launch(pool) {
         producerFunction2(producer2)
     }
     
-    launch {
+    launch(pool) {
         consumerFunction1(consumer1)
     }
     
-    launch {
+    launch(pool) {
         consumerFunction2(consumer2)
     }
     
     // This coroutine will never finish due to deadlock
-    launch {
+    launch(pool) {
         channel3.send(channel1.receive())
         channel4.send(channel2.receive())
     }
 }
 
 class RunChecker52: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

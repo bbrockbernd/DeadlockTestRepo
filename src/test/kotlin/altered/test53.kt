@@ -35,13 +35,15 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test53
+import org.example.altered.test53.RunChecker53.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class Producer(private val channel: Channel<Int>) {
     fun produce() {
-        runBlocking {
+        runBlocking(pool) {
             repeat(5) {
                 channel.send(it)
                 println("Sent: $it")
@@ -52,7 +54,7 @@ class Producer(private val channel: Channel<Int>) {
 
 class Consumer(private val channel: Channel<Int>) {
     fun consume() {
-        runBlocking {
+        runBlocking(pool) {
             repeat(5) {
                 val received = channel.receive()
                 println("Received: $received")
@@ -66,8 +68,8 @@ fun createDeadlock() {
     val producer = Producer(channel)
     val consumer = Consumer(channel)
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             consumer.consume()
         }
 
@@ -81,5 +83,10 @@ fun main(): Unit{
 }
 
 class RunChecker53: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

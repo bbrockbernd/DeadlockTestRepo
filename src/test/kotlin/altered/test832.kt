@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test832
+import org.example.altered.test832.RunChecker832.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -46,25 +48,25 @@ class Processor {
 }
 
 fun sendToChannelA(processor: Processor) {
-    runBlocking {
+    runBlocking(pool) {
         processor.channelA.send(1)
         processor.channelB.receive()
     }
 }
 
 fun sendToChannelB(processor: Processor) {
-    runBlocking {
+    runBlocking(pool) {
         processor.channelB.send(2)
         processor.channelA.receive()
     }
 }
 
 fun startProcess(processor: Processor) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             sendToChannelA(processor)
         }
-        launch {
+        launch(pool) {
             sendToChannelB(processor)
         }
     }
@@ -80,5 +82,10 @@ fun main(): Unit{
 }
 
 class RunChecker832: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

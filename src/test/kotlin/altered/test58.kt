@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test58
+import org.example.altered.test58.RunChecker58.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -65,32 +67,32 @@ class ChannelTwo {
 
 val channelThree = Channel<Int>()
 
-fun functionOne(c1: ChannelOne, c3: Channel<Int>) = runBlocking {
-    launch {
+fun functionOne(c1: ChannelOne, c3: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         c1.sendValue(1)
     }
-    launch {
+    launch(pool) {
         val value = c1.receiveValue()
         functionTwo(c3, value)
     }
 }
 
 fun functionTwo(c3: Channel<Int>, value: Int) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             c3.send(value)
         }
     }
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             functionThree(c3)
         }
     }
 }
 
 fun functionThree(c3: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val value = c3.receive()
             functionFour(value)
         }
@@ -98,30 +100,35 @@ fun functionThree(c3: Channel<Int>) {
 }
 
 fun functionFour(value: Int) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             functionFive(channelThree, value)
         }
     }
 }
 
 fun functionFive(c3: Channel<Int>, value: Int) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             c3.send(value)
         }
-        launch {
+        launch(pool) {
             val receivedValue = c3.receive()
             println("Received: $receivedValue")
         }
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val chanOne = ChannelOne()
     functionOne(chanOne, channelThree)
 }
 
 class RunChecker58: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

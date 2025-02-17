@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test890
+import org.example.altered.test890.RunChecker890.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -70,18 +72,18 @@ suspend fun initiateProcesses(channel1: Channel<Int>, channel2: Channel<Int>) {
     val coordinator = Coordinator(channel1, channel2)
     
     coroutineScope {
-        launch { processor1.process(channel1, 1) }
-        launch { processor2.process(channel2, 2) }
-        launch { coordinator.coordinate() }
+        launch(pool) { processor1.process(channel1, 1) }
+        launch(pool) { processor2.process(channel2, 2) }
+        launch(pool) { coordinator.coordinate() }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
 
-    launch { initiateProcesses(channel1, channel2) }
-    launch {
+    launch(pool) { initiateProcesses(channel1, channel2) }
+    launch(pool) {
         val result = channel1.receive()
         val adjusted = result + 2
         println("Main coroutine adjusted value: $adjusted")
@@ -89,5 +91,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker890: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

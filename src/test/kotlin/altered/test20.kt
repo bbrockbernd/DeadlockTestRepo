@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test20
+import org.example.altered.test20.RunChecker20.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -78,19 +80,24 @@ suspend fun function5(dataHandler: DataHandler) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val dataHandler = DataHandler()
     
-    launch { function1(dataHandler) } // Coroutine 1
-    launch { function2(dataHandler) } // Coroutine 2
-    launch { function3(dataHandler) } // Coroutine 3
-    launch { function4(dataHandler) } // Coroutine 4
-    launch { function5(dataHandler) } // Coroutine 5
-    launch { function2(dataHandler) } // Coroutine 6, duplicate intent
-    launch { function3(dataHandler) } // Coroutine 7, duplicate intent
-    launch { function4(dataHandler) } // Coroutine 8, duplicate intent
+    launch(pool) { function1(dataHandler) } // Coroutine 1
+    launch(pool) { function2(dataHandler) } // Coroutine 2
+    launch(pool) { function3(dataHandler) } // Coroutine 3
+    launch(pool) { function4(dataHandler) } // Coroutine 4
+    launch(pool) { function5(dataHandler) } // Coroutine 5
+    launch(pool) { function2(dataHandler) } // Coroutine 6, duplicate intent
+    launch(pool) { function3(dataHandler) } // Coroutine 7, duplicate intent
+    launch(pool) { function4(dataHandler) } // Coroutine 8, duplicate intent
 }
 
 class RunChecker20: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

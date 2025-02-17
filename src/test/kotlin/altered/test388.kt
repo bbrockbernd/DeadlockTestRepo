@@ -35,18 +35,20 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test388
+import org.example.altered.test388.RunChecker388.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 fun functionA(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        val coroutine1 = launch {
+    runBlocking(pool) {
+        val coroutine1 = launch(pool) {
             val value = channel1.receive()
             channel2.send(value)
         }
         
-        val coroutine2 = launch {
+        val coroutine2 = launch(pool) {
             val value = channel2.receive()
             channel1.send(value)
         }
@@ -56,15 +58,15 @@ fun functionA(channel1: Channel<Int>, channel2: Channel<Int>) {
     }
 }
 
-fun functionB(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking {
-    launch {
+fun functionB(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val value = channel2.receive()
         channel3.send(value)
     }
 }
 
-fun functionC(channel3: Channel<Int>, channel1: Channel<Int>) = runBlocking {
-    launch {
+fun functionC(channel3: Channel<Int>, channel1: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val value = channel3.receive()
         channel1.send(value)
     }
@@ -81,5 +83,10 @@ fun main(): Unit{
 }
 
 class RunChecker388: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

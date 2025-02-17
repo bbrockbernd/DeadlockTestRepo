@@ -36,40 +36,42 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test770
+import org.example.altered.test770.RunChecker770.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
     
     // Coroutine 1
-    launch {
+    launch(pool) {
         val data = function1(channel1)
         channel2.send(data)
     }
 
     // Coroutine 2
-    launch {
+    launch(pool) {
         channel1.send(10)
     }
 
     // Coroutine 3
-    launch {
+    launch(pool) {
         val data = function2(channel2)
         channel3.send(data)
     }
 
     // Coroutine 4
-    launch {
+    launch(pool) {
         val data = function3(channel3)
         println("Received: $data")
     }
 
     // Coroutine 5
-    launch {
+    launch(pool) {
         delay(1000)
         println("Timeout reached, no deadlock")
     }
@@ -88,5 +90,10 @@ suspend fun function3(channel: Channel<Int>): Int {
 }
 
 class RunChecker770: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

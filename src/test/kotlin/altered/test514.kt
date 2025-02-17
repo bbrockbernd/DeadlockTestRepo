@@ -36,11 +36,13 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test514
+import org.example.altered.test514.RunChecker514.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 
 class Producer1(private val channel: Channel<Int>) {
     suspend fun produce() {
@@ -58,9 +60,9 @@ class Producer2(private val channel: Channel<String>) {
     }
 }
 
-fun process1(channel: Channel<Int>, otherChannel: Channel<String>) = runBlocking {
+fun process1(channel: Channel<Int>, otherChannel: Channel<String>) = runBlocking(pool) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (i in 1..5) {
                 val value = channel.receive()
                 println("Processing Int: $value")
@@ -70,9 +72,9 @@ fun process1(channel: Channel<Int>, otherChannel: Channel<String>) = runBlocking
     }
 }
 
-fun process2(channel: Channel<String>, otherChannel: Channel<Int>) = runBlocking {
+fun process2(channel: Channel<String>, otherChannel: Channel<Int>) = runBlocking(pool) {
     coroutineScope {
-        launch {
+        launch(pool) {
             for (i in 1..5) {
                 val value = channel.receive()
                 println("Processing String: $value")
@@ -88,14 +90,19 @@ fun main(): Unit{
     val producer1 = Producer1(channel1)
     val producer2 = Producer2(channel2)
 
-    runBlocking {
-        launch { producer1.produce() }
-        launch { producer2.produce() }
+    runBlocking(pool) {
+        launch(pool) { producer1.produce() }
+        launch(pool) { producer2.produce() }
         process1(channel1, channel2)
         process2(channel2, channel1)
     }
 }
 
 class RunChecker514: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test357
+import org.example.altered.test357.RunChecker357.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -53,8 +55,8 @@ val ch6 = Channel<Int>()
 val ch7 = Channel<Int>()
 
 fun func1(chA: ChannelA) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             chA.ch.send(1)
             ch4.send(2)
         }
@@ -62,8 +64,8 @@ fun func1(chA: ChannelA) {
 }
 
 fun func2(chB: ChannelB) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             chB.ch.receive()
             ch3.send(3)
         }
@@ -71,8 +73,8 @@ fun func2(chB: ChannelB) {
 }
 
 fun func3(chC: ChannelC) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             chC.ch.send(4)
             ch6.send(5)
         }
@@ -80,8 +82,8 @@ fun func3(chC: ChannelC) {
 }
 
 fun func4(chD: ChannelD) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             chD.ch.receive()
             ch5.send(6)
         }
@@ -89,8 +91,8 @@ fun func4(chD: ChannelD) {
 }
 
 fun func5() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             ch1.receive()
             ch2.send(7)
         }
@@ -98,8 +100,8 @@ fun func5() {
 }
 
 fun func6() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             ch5.receive()
             ch1.send(8)
         }
@@ -107,8 +109,8 @@ fun func6() {
 }
 
 fun func7() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             ch6.receive()
             ch7.send(9)
         }
@@ -116,8 +118,8 @@ fun func7() {
 }
 
 fun func8() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             ch2.receive()
             ch3.receive()
         }
@@ -141,5 +143,10 @@ fun main(): Unit{
 }
 
 class RunChecker357: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

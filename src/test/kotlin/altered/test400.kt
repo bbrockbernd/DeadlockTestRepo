@@ -35,13 +35,15 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test400
+import org.example.altered.test400.RunChecker400.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
 fun function1(channel1: Channel<Int>, channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 val receivedValue = channel1.receive()
                 channel2.send(receivedValue + 1)
@@ -51,8 +53,8 @@ fun function1(channel1: Channel<Int>, channel2: Channel<Int>) {
 }
 
 fun function2(channel2: Channel<Int>, channel3: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 val receivedValue = channel2.receive()
                 channel3.send(receivedValue + 1)
@@ -62,8 +64,8 @@ fun function2(channel2: Channel<Int>, channel3: Channel<Int>) {
 }
 
 fun function3(channel3: Channel<Int>, channel1: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 val receivedValue = channel3.receive()
                 channel1.send(receivedValue + 1)
@@ -73,8 +75,8 @@ fun function3(channel3: Channel<Int>, channel1: Channel<Int>) {
 }
 
 fun function4(channel1: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 channel1.send(it)
             }
@@ -83,8 +85,8 @@ fun function4(channel1: Channel<Int>) {
 }
 
 fun function5(channel2: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 channel2.send(it)
             }
@@ -93,8 +95,8 @@ fun function5(channel2: Channel<Int>) {
 }
 
 fun function6(channel3: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 channel3.send(it)
             }
@@ -103,13 +105,13 @@ fun function6(channel3: Channel<Int>) {
 }
 
 fun function7(channel1: Channel<Int>, channel2: Channel<Int>, channel3: Channel<Int>) {
-    runBlocking {
-        launch { function1(channel1, channel2) }
-        launch { function2(channel2, channel3) }
-        launch { function3(channel3, channel1) }
-        launch { function4(channel1) }
-        launch { function5(channel2) }
-        launch { function6(channel3) }
+    runBlocking(pool) {
+        launch(pool) { function1(channel1, channel2) }
+        launch(pool) { function2(channel2, channel3) }
+        launch(pool) { function3(channel3, channel1) }
+        launch(pool) { function4(channel1) }
+        launch(pool) { function5(channel2) }
+        launch(pool) { function6(channel3) }
     }
 }
 
@@ -122,5 +124,10 @@ fun main(): Unit{
 }
 
 class RunChecker400: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

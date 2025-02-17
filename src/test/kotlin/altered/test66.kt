@@ -35,14 +35,16 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test66
+import org.example.altered.test66.RunChecker66.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class ClassA {
-    fun functionA(channel: Channel<Int>) = runBlocking {
+    fun functionA(channel: Channel<Int>) = runBlocking(pool) {
         coroutineScope {
-            launch {
+            launch(pool) {
                 println("ClassA:functionA - Sending data")
                 channel.send(1)
             }
@@ -51,9 +53,9 @@ class ClassA {
 }
 
 class ClassB {
-    fun functionB(channel: Channel<Int>) = runBlocking {
+    fun functionB(channel: Channel<Int>) = runBlocking(pool) {
         coroutineScope {
-            launch {
+            launch(pool) {
                 println("ClassB:functionB - Receiving data")
                 val data = channel.receive()
                 println("ClassB:functionB - Received: $data")
@@ -63,9 +65,9 @@ class ClassB {
 }
 
 class ClassC {
-    fun functionC(channel: Channel<Int>) = runBlocking {
+    fun functionC(channel: Channel<Int>) = runBlocking(pool) {
         coroutineScope {
-            launch {
+            launch(pool) {
                 println("ClassC:functionC - Sending data")
                 channel.send(2)
             }
@@ -74,9 +76,9 @@ class ClassC {
 }
 
 class ClassD {
-    fun functionD(channel: Channel<Int>) = runBlocking {
+    fun functionD(channel: Channel<Int>) = runBlocking(pool) {
         coroutineScope {
-            launch {
+            launch(pool) {
                 println("ClassD:functionD - Receiving data")
                 val data = channel.receive()
                 println("ClassD:functionD - Received: $data")
@@ -85,7 +87,7 @@ class ClassD {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel = Channel<Int>()
 
     ClassA().functionA(channel)
@@ -94,13 +96,18 @@ fun main(): Unit= runBlocking {
     ClassD().functionD(channel)
 
     coroutineScope {
-        launch { ClassA().functionA(channel) }
-        launch { ClassB().functionB(channel) }
-        launch { ClassC().functionC(channel) }
-        launch { ClassD().functionD(channel) }
+        launch(pool) { ClassA().functionA(channel) }
+        launch(pool) { ClassB().functionB(channel) }
+        launch(pool) { ClassC().functionC(channel) }
+        launch(pool) { ClassD().functionD(channel) }
     }
 }
 
 class RunChecker66: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

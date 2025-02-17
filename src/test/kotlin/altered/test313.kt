@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test313
+import org.example.altered.test313.RunChecker313.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -71,7 +73,7 @@ fun channelFive(): Channel<Int> = Channel()
 fun channelSix(): Channel<Int> = Channel()
 fun channelSeven(): Channel<Int> = Channel()
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val chan1 = channelOne()
     val chan2 = channelTwo()
     val chan3 = channelThree()
@@ -90,21 +92,26 @@ fun main(): Unit= runBlocking {
     val processor4 = Processor(chan6, chan4)
     val consumer2 = Consumer(chan4)
 
-    launch { producer1.produce() }
-    launch { processor1.process() }
-    launch { processor2.process() }
-    launch { consumer1.consume() }
+    launch(pool) { producer1.produce() }
+    launch(pool) { processor1.process() }
+    launch(pool) { processor2.process() }
+    launch(pool) { consumer1.consume() }
     
-    launch { producer2.produce() }
-    launch { processor3.process() }
+    launch(pool) { producer2.produce() }
+    launch(pool) { processor3.process() }
     
     // Intentional deadlock: chan7 is never consumed
-    launch { processor4.process() }
+    launch(pool) { processor4.process() }
     
     // Uncommenting the following line will cause the code to work without deadlock
-    // launch { consumer2.consume() }
+    // launch(pool) { consumer2.consume() }
 }
 
 class RunChecker313: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

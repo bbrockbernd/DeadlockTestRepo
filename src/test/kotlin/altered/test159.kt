@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test159
+import org.example.altered.test159.RunChecker159.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -64,7 +66,7 @@ suspend fun consumer(channel: Channel<Data>) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val inputChannel = Channel<Data>()
     val intermediateChannel1 = Channel<Data>()
     val intermediateChannel2 = Channel<Data>()
@@ -73,26 +75,31 @@ fun main(): Unit= runBlocking {
     val processor1 = Processor()
     val processor2 = Processor()
 
-    launch { generator(inputChannel) }
-    launch { processor1.process(inputChannel, intermediateChannel1) }
-    launch { processor2.process(intermediateChannel1, intermediateChannel2) }
-    launch {
+    launch(pool) { generator(inputChannel) }
+    launch(pool) { processor1.process(inputChannel, intermediateChannel1) }
+    launch(pool) { processor2.process(intermediateChannel1, intermediateChannel2) }
+    launch(pool) {
         for (data in intermediateChannel2) {
             processor2.processedChannel.send(data)
         }
         intermediateChannel2.close()
     }
-    launch { consumer(processor2.processedChannel) }
+    launch(pool) { consumer(processor2.processedChannel) }
 
-    launch {
+    launch(pool) {
         for (data in processor2.processedChannel) {
             outputChannel.send(data)
         }
         outputChannel.close()
     }
-    launch { consumer(outputChannel) }
+    launch(pool) { consumer(outputChannel) }
 }
 
 class RunChecker159: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

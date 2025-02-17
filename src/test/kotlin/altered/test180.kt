@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test180
+import org.example.altered.test180.RunChecker180.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -74,26 +76,26 @@ class ConsumerB(private val channel: ReceiveChannel<String>, private val process
     }
 }
 
-fun coroutineA(channel1: SendChannel<Int>, channel2: SendChannel<String>) = runBlocking {
-    launch { ProducerA(channel1).produce() }
-    launch { ProducerB(channel2).produce() }
+fun coroutineA(channel1: SendChannel<Int>, channel2: SendChannel<String>) = runBlocking(pool) {
+    launch(pool) { ProducerA(channel1).produce() }
+    launch(pool) { ProducerB(channel2).produce() }
 }
 
-fun coroutineB(channel1: ReceiveChannel<Int>, channel2: ReceiveChannel<String>, processChannel1: SendChannel<Int>, processChannel2: SendChannel<String>) = runBlocking {
-    launch { ConsumerA(channel1, processChannel1).consume() }
-    launch { ConsumerB(channel2, processChannel2).consume() }
+fun coroutineB(channel1: ReceiveChannel<Int>, channel2: ReceiveChannel<String>, processChannel1: SendChannel<Int>, processChannel2: SendChannel<String>) = runBlocking(pool) {
+    launch(pool) { ConsumerA(channel1, processChannel1).consume() }
+    launch(pool) { ConsumerB(channel2, processChannel2).consume() }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<String>()
     val processChannel1 = Channel<Int>(5)
     val processChannel2 = Channel<String>(5)
 
-    launch { coroutineA(channel1, channel2) }
-    launch { coroutineB(channel1, channel2, processChannel1, processChannel2) }
+    launch(pool) { coroutineA(channel1, channel2) }
+    launch(pool) { coroutineB(channel1, channel2, processChannel1, processChannel2) }
 
-    launch {
+    launch(pool) {
         repeat(5) {
             println("Processed Int: ${processChannel1.receive()}")
             println("Processed String: ${processChannel2.receive()}")
@@ -102,5 +104,10 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker180: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

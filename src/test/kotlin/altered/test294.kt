@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test294
+import org.example.altered.test294.RunChecker294.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -57,14 +59,14 @@ class Consumer(val id: Int, val inputChannel: Channel<Int>) {
     }
 }
 
-fun processChannel(inputChannel: Channel<Int>, outputChannel: Channel<Int>): Job = GlobalScope.launch {
+fun processChannel(inputChannel: Channel<Int>, outputChannel: Channel<Int>): Job = GlobalScope.launch(pool) {
     for (i in 1..5) {
         val value = inputChannel.receive()
         outputChannel.send(value * 2)
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channel1 = Channel<Int>(5)
     val channel2 = Channel<Int>(5)
     val channel3 = Channel<Int>(5)
@@ -81,22 +83,27 @@ fun main(): Unit = runBlocking {
     val consumer1 = Consumer(1, channel2)
     val consumer2 = Consumer(2, channel4)
 
-    launch { producer1.produce() }
-    launch { producer2.produce() }
-    launch { producer3.produce() }
+    launch(pool) { producer1.produce() }
+    launch(pool) { producer2.produce() }
+    launch(pool) { producer3.produce() }
 
-    launch { processChannel(channel1, channel2) }
-    launch { processChannel(channel3, channel4) }
-    launch { processChannel(channel5, channel6) }
-    launch { processChannel(channel6, channel7) }
-    launch { processChannel(channel7, channel8) }
+    launch(pool) { processChannel(channel1, channel2) }
+    launch(pool) { processChannel(channel3, channel4) }
+    launch(pool) { processChannel(channel5, channel6) }
+    launch(pool) { processChannel(channel6, channel7) }
+    launch(pool) { processChannel(channel7, channel8) }
 
-    launch { consumer1.consume() }
-    launch { consumer2.consume() }
+    launch(pool) { consumer1.consume() }
+    launch(pool) { consumer2.consume() }
 
     delay(10000L) // Wait for all coroutines to finish
 }
 
 class RunChecker294: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

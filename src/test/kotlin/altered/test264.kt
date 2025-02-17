@@ -35,11 +35,13 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test264
+import org.example.altered.test264.RunChecker264.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -47,37 +49,42 @@ fun main(): Unit= runBlocking {
     val channel5 = Channel<Int>()
     val channel6 = Channel<Int>()
 
-    launch { coroutineOne(channel1, channel2, channel5) }
-    launch { coroutineTwo(channel2, channel3) }
-    launch { coroutineThree(channel3, channel4) }
-    launch { coroutineFour(channel4, channel1, channel6) }
+    launch(pool) { coroutineOne(channel1, channel2, channel5) }
+    launch(pool) { coroutineTwo(channel2, channel3) }
+    launch(pool) { coroutineThree(channel3, channel4) }
+    launch(pool) { coroutineFour(channel4, channel1, channel6) }
     
     // This line is essential to keep the main function running until all launched coroutines complete.
     delay(1000L)
 }
 
-fun coroutineOne(ch1: Channel<Int>, ch2: Channel<Int>, ch5: Channel<Int>) = runBlocking {
+fun coroutineOne(ch1: Channel<Int>, ch2: Channel<Int>, ch5: Channel<Int>) = runBlocking(pool) {
     ch1.send(1)
     val value = ch2.receive()
     ch5.send(value)
 }
 
-fun coroutineTwo(ch2: Channel<Int>, ch3: Channel<Int>) = runBlocking {
+fun coroutineTwo(ch2: Channel<Int>, ch3: Channel<Int>) = runBlocking(pool) {
     val value = ch2.receive()
     ch3.send(value)
 }
 
-fun coroutineThree(ch3: Channel<Int>, ch4: Channel<Int>) = runBlocking {
+fun coroutineThree(ch3: Channel<Int>, ch4: Channel<Int>) = runBlocking(pool) {
     val value = ch3.receive()
     ch4.send(value)
 }
 
-fun coroutineFour(ch4: Channel<Int>, ch1: Channel<Int>, ch6: Channel<Int>) = runBlocking {
+fun coroutineFour(ch4: Channel<Int>, ch1: Channel<Int>, ch6: Channel<Int>) = runBlocking(pool) {
     val value = ch4.receive()
     ch1.send(value)
     ch6.send(42) // Arbitrary value to possibly unblock channel 6
 }
 
 class RunChecker264: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,22 +35,24 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test331
+import org.example.altered.test331.RunChecker331.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>() // Unbuffered channel
     val channel2 = Channel<Int>() // Unbuffered channel
 
-    launch { functionA(channel1, channel2) }
-    launch { functionA(channel1, channel2) }
-    launch { functionB(channel1, channel2) }
-    launch { functionB(channel1, channel2) }
-    launch { functionB(channel1, channel2) }
-    launch { functionC(channel1) }
-    launch { functionC(channel2) }
-    launch { functionC(channel2) }
+    launch(pool) { functionA(channel1, channel2) }
+    launch(pool) { functionA(channel1, channel2) }
+    launch(pool) { functionB(channel1, channel2) }
+    launch(pool) { functionB(channel1, channel2) }
+    launch(pool) { functionB(channel1, channel2) }
+    launch(pool) { functionC(channel1) }
+    launch(pool) { functionC(channel2) }
+    launch(pool) { functionC(channel2) }
 
     delay(5000) // Allow time to observe deadlock
 }
@@ -70,5 +72,10 @@ suspend fun functionC(channel: Channel<Int>) {
 }
 
 class RunChecker331: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

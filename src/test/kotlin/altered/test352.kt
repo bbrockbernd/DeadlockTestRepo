@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test352
+import org.example.altered.test352.RunChecker352.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -49,38 +51,38 @@ class Processor {
 
     suspend fun processChannels() {
         coroutineScope {
-            launch { 
+            launch(pool) { 
                 for (i in 0 until 10) {
                     channelA.send(i)
                     channelB.send(i * 2)
                 }
             }
-            launch {
+            launch(pool) {
                 for (i in 0 until 10) {
                     val a = channelA.receive()
                     val b = channelB.receive()
                     channelC.send(a + b)
                 }
             }
-            launch {
+            launch(pool) {
                 for (i in 0 until 10) {
                     val c = channelC.receive()
                     channelD.send(c * 2)
                 }
             }
-            launch {
+            launch(pool) {
                 for (i in 0 until 10) {
                     val d = channelD.receive()
                     channelE.send(d - 1)
                 }
             }
-            launch {
+            launch(pool) {
                 for (i in 0 until 10) {
                     val e = channelE.receive()
                     channelF.send(e + 5)
                 }
             }
-            launch {
+            launch(pool) {
                 for (i in 0 until 10) {
                     println(channelF.receive())
                 }
@@ -89,11 +91,16 @@ class Processor {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val processor = Processor()
     processor.processChannels()
 }
 
 class RunChecker352: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

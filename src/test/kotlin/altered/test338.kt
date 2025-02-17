@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test338
+import org.example.altered.test338.RunChecker338.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -74,20 +76,20 @@ class FourthClass(private val outputChannel: Channel<Int>) {
     }
 }
 
-fun setupChannels() = runBlocking {
+fun setupChannels() = runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
     val channel4 = Channel<Int>()
     
-    launch { FourthClass(channel1).generateValues() }
-    launch { FirstClass(channel1, channel2).process() }
-    launch { SecondClass(channel2, channel3).compute() }
-    launch { ThirdClass(channel3).aggregate() }
-    launch { FourthClass(channel4).generateValues() }
-    launch { FirstClass(channel4, channel2).process() }
-    launch { SecondClass(channel2, channel3).compute() }
-    launch { ThirdClass(channel3).aggregate() }
+    launch(pool) { FourthClass(channel1).generateValues() }
+    launch(pool) { FirstClass(channel1, channel2).process() }
+    launch(pool) { SecondClass(channel2, channel3).compute() }
+    launch(pool) { ThirdClass(channel3).aggregate() }
+    launch(pool) { FourthClass(channel4).generateValues() }
+    launch(pool) { FirstClass(channel4, channel2).process() }
+    launch(pool) { SecondClass(channel2, channel3).compute() }
+    launch(pool) { ThirdClass(channel3).aggregate() }
 }
 
 fun main(): Unit{
@@ -95,5 +97,10 @@ fun main(): Unit{
 }
 
 class RunChecker338: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

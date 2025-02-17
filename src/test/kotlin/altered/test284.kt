@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test284
+import org.example.altered.test284.RunChecker284.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -75,28 +77,28 @@ suspend fun consumerFunction(consumer: Consumer) {
     consumer.consumeAndProduce()
 }
 
-fun additionalFunction1(channel: ReceiveChannel<Int>, outChannel: SendChannel<Int>) = runBlocking {
+fun additionalFunction1(channel: ReceiveChannel<Int>, outChannel: SendChannel<Int>) = runBlocking(pool) {
     for (value in channel) {
         outChannel.send(value + 1)
     }
     outChannel.close()
 }
 
-fun additionalFunction2(channel: ReceiveChannel<Int>, outChannel: SendChannel<Int>) = runBlocking {
+fun additionalFunction2(channel: ReceiveChannel<Int>, outChannel: SendChannel<Int>) = runBlocking(pool) {
     for (value in channel) {
         outChannel.send(value - 1)
     }
     outChannel.close()
 }
 
-fun additionalFunction3(channel: ReceiveChannel<Int>, outChannel: SendChannel<Int>) = runBlocking {
+fun additionalFunction3(channel: ReceiveChannel<Int>, outChannel: SendChannel<Int>) = runBlocking(pool) {
     for (value in channel) {
         outChannel.send(value * value)
     }
     outChannel.close()
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channels = createChannels()
 
     val producer = Producer(channels[0])
@@ -106,11 +108,11 @@ fun main(): Unit= runBlocking {
     val consumer4 = Consumer(channels[3], channels[4])
     val consumer5 = Consumer(channels[4], channels[5])
 
-    launch { producerFunction(producer) }
-    launch { consumerFunction(consumer1) }
-    launch { consumerFunction(consumer2) }
-    launch { consumerFunction(consumer3) }
-    launch { consumerFunction(consumer4) }
+    launch(pool) { producerFunction(producer) }
+    launch(pool) { consumerFunction(consumer1) }
+    launch(pool) { consumerFunction(consumer2) }
+    launch(pool) { consumerFunction(consumer3) }
+    launch(pool) { consumerFunction(consumer4) }
     
     additionalFunction1(channels[5], channels[6])
     additionalFunction2(channels[6], channels[7])
@@ -118,5 +120,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker284: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

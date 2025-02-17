@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test351
+import org.example.altered.test351.RunChecker351.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -58,57 +60,57 @@ class Manager(private val worker1: Worker, private val worker2: Worker, private 
     }
 }
 
-fun processInput1(input1: Channel<Int>, output: Channel<Int>) = runBlocking {
+fun processInput1(input1: Channel<Int>, output: Channel<Int>) = runBlocking(pool) {
     repeat(5) {
         input1.send(it)
     }
 }
 
-fun processInput2(input2: Channel<Int>, output: Channel<Int>) = runBlocking {
+fun processInput2(input2: Channel<Int>, output: Channel<Int>) = runBlocking(pool) {
     repeat(5) {
         input2.send(it + 10)
     }
 }
 
-fun startWorker1(input1: Channel<Int>, output: Channel<Int>) = runBlocking {
+fun startWorker1(input1: Channel<Int>, output: Channel<Int>) = runBlocking(pool) {
     val worker1 = Worker(input1, output)
-    launch {
+    launch(pool) {
         worker1.process()
     }
 }
 
-fun startWorker2(input2: Channel<Int>, output: Channel<Int>) = runBlocking {
+fun startWorker2(input2: Channel<Int>, output: Channel<Int>) = runBlocking(pool) {
     val worker2 = Worker(input2, output)
-    launch {
+    launch(pool) {
         worker2.process()
     }
 }
 
-fun startManager(worker1: Worker, worker2: Worker, result: Channel<Int>) = runBlocking {
-    launch {
+fun startManager(worker1: Worker, worker2: Worker, result: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val manager = Manager(worker1, worker2, result)
         manager.manage()
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val input1 = Channel<Int>()
     val input2 = Channel<Int>()
     val worker1Output = Channel<Int>()
     val worker2Output = Channel<Int>()
     val result = Channel<Int>()
 
-    launch { processInput1(input1, worker1Output) }
-    launch { processInput2(input2, worker2Output) }
-    launch { startWorker1(input1, worker1Output) }
-    launch { startWorker2(input2, worker2Output) }
-    launch { 
+    launch(pool) { processInput1(input1, worker1Output) }
+    launch(pool) { processInput2(input2, worker2Output) }
+    launch(pool) { startWorker1(input1, worker1Output) }
+    launch(pool) { startWorker2(input2, worker2Output) }
+    launch(pool) { 
         val worker1 = Worker(input1, worker1Output) 
         val worker2 = Worker(input2, worker2Output)
         startManager(worker1, worker2, result)
     }
 
-    launch {
+    launch(pool) {
         repeat(5) {
             println(result.receive())
         }
@@ -116,5 +118,10 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker351: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

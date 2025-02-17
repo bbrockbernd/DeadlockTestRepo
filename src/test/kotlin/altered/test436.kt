@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test436
+import org.example.altered.test436.RunChecker436.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -85,37 +87,37 @@ class Aggregator(val channelC: Channel<Double>) {
 }
 
 fun function1(channelA: Channel<Int>, channelB: Channel<String>, channelC: Channel<Double>) {
-    runBlocking {
+    runBlocking(pool) {
         val producer = Producer(channelA, channelB)
-        launch { producer.produceInts() }
-        launch { producer.produceStrings() }
+        launch(pool) { producer.produceInts() }
+        launch(pool) { producer.produceStrings() }
     }
 }
 
 fun function2(channelA: Channel<Int>, channelB: Channel<String>, channelC: Channel<Double>) {
-    runBlocking {
+    runBlocking(pool) {
         val consumer = Consumer(channelA, channelB, channelC)
-        launch { consumer.consumeInts() }
-        launch { consumer.consumeStrings() }
+        launch(pool) { consumer.consumeInts() }
+        launch(pool) { consumer.consumeStrings() }
     }
 }
 
 fun function3(channelA: Channel<Int>, channelB: Channel<String>, channelC: Channel<Double>) {
-    runBlocking {
+    runBlocking(pool) {
         val consumer = Consumer(channelA, channelB, channelC)
-        launch { consumer.sendToChannelC() }
+        launch(pool) { consumer.sendToChannelC() }
     }
 }
 
 fun function4(channelA: Channel<Int>, channelB: Channel<String>, channelC: Channel<Double>) {
-    runBlocking {
+    runBlocking(pool) {
         val aggregator = Aggregator(channelC)
-        launch { aggregator.aggregateDoubles() }
+        launch(pool) { aggregator.aggregateDoubles() }
     }
 }
 
 fun function5(channelA: Channel<Int>, channelB: Channel<String>, channelC: Channel<Double>) {
-    runBlocking {
+    runBlocking(pool) {
         function1(channelA, channelB, channelC)
         function2(channelA, channelB, channelC)
         function3(channelA, channelB, channelC)
@@ -132,5 +134,10 @@ fun main(): Unit{
 }
 
 class RunChecker436: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

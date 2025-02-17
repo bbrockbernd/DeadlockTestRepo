@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test678
+import org.example.altered.test678.RunChecker678.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -44,13 +46,13 @@ class DeadlockTest {
     private val channel = Channel<Int>()
 
     fun start() {
-        runBlocking {
+        runBlocking(pool) {
             coroutineScope {
-                launch { function1() }
-                launch { function2() }
-                launch { function3() }
-                launch { function4() }
-                launch { function5() }
+                launch(pool) { function1() }
+                launch(pool) { function2() }
+                launch(pool) { function3() }
+                launch(pool) { function4() }
+                launch(pool) { function5() }
             }
         }
     }
@@ -86,5 +88,10 @@ fun main(): Unit{
 }
 
 class RunChecker678: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

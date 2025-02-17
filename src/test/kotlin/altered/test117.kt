@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test117
+import org.example.altered.test117.RunChecker117.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -64,19 +66,19 @@ class Mediator(private val channel1: Channel<Int>, private val channel2: Channel
     }
 }
 
-fun runProducer(producer: Producer) = runBlocking {
-    launch { producer.produce() }
+fun runProducer(producer: Producer) = runBlocking(pool) {
+    launch(pool) { producer.produce() }
 }
 
-fun runConsumer(consumer: Consumer) = runBlocking {
-    launch { consumer.consume() }
+fun runConsumer(consumer: Consumer) = runBlocking(pool) {
+    launch(pool) { consumer.consume() }
 }
 
-fun runMediator(mediator: Mediator) = runBlocking {
-    launch { mediator.mediate() }
+fun runMediator(mediator: Mediator) = runBlocking(pool) {
+    launch(pool) { mediator.mediate() }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
 
@@ -84,13 +86,18 @@ fun main(): Unit= runBlocking {
     val consumer = Consumer(channel2)
     val mediator = Mediator(channel1, channel2)
 
-    launch { runProducer(producer) }
-    launch { runMediator(mediator) }
-    launch { runConsumer(consumer) }
+    launch(pool) { runProducer(producer) }
+    launch(pool) { runMediator(mediator) }
+    launch(pool) { runConsumer(consumer) }
     
     delay(1000)
 }
 
 class RunChecker117: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

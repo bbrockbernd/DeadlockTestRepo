@@ -36,24 +36,26 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test828
+import org.example.altered.test828.RunChecker828.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 fun nonBlockingTask(channel1: Channel<Int>, channel2: Channel<Int>, channel3: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         val data = channel1.receive()
         channel2.send(data + 1)
         channel3.send(data * 2)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
 
-    launch {
+    launch(pool) {
         // Send initial data
         channel1.send(4)
         println("Received by channel2: ${channel2.receive()}")
@@ -66,5 +68,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker828: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,12 +36,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test895
+import org.example.altered.test895.RunChecker895.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun functionOne(channelA: Channel<Int>, channelB: Channel<Int>) = runBlocking {
-    launch {
+fun functionOne(channelA: Channel<Int>, channelB: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..5) {
             channelA.send(i)
             val value = channelB.receive()
@@ -50,8 +52,8 @@ fun functionOne(channelA: Channel<Int>, channelB: Channel<Int>) = runBlocking {
     }
 }
 
-fun functionTwo(channelB: Channel<Int>, channelC: Channel<Int>) = runBlocking {
-    launch {
+fun functionTwo(channelB: Channel<Int>, channelC: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..5) {
             val value = channelB.receive()
             println("FunctionTwo received: $value")
@@ -60,8 +62,8 @@ fun functionTwo(channelB: Channel<Int>, channelC: Channel<Int>) = runBlocking {
     }
 }
 
-fun functionThree(channelC: Channel<Int>, channelD: Channel<Int>) = runBlocking {
-    launch {
+fun functionThree(channelC: Channel<Int>, channelD: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..5) {
             val value = channelC.receive()
             println("FunctionThree received: $value")
@@ -70,18 +72,18 @@ fun functionThree(channelC: Channel<Int>, channelD: Channel<Int>) = runBlocking 
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
     val channelC = Channel<Int>()
     val channelD = Channel<Int>()
 
-    launch { functionOne(channelA, channelB) }
-    launch { functionTwo(channelB, channelC) }
-    launch { functionThree(channelC, channelD) }
+    launch(pool) { functionOne(channelA, channelB) }
+    launch(pool) { functionTwo(channelB, channelC) }
+    launch(pool) { functionThree(channelC, channelD) }
 
     // The last coroutine mimicking the downstream processing.
-    launch {
+    launch(pool) {
         for (i in 1..5) {
             val value = channelD.receive()
             println("Main received: $value")
@@ -92,5 +94,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker895: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test208
+import org.example.altered.test208.RunChecker208.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -46,8 +48,8 @@ class ChannelD(val channel: Channel<Int>)
 class ChannelE(val channel: Channel<Int>)
 
 fun firstFunction(chA: ChannelA, chB: ChannelB) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val received = chA.channel.receive()
             chB.channel.send(received + 1)
         }
@@ -55,8 +57,8 @@ fun firstFunction(chA: ChannelA, chB: ChannelB) {
 }
 
 fun secondFunction(chB: ChannelB, chC: ChannelC) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val received = chB.channel.receive()
             chC.channel.send(received + 1)
         }
@@ -64,8 +66,8 @@ fun secondFunction(chB: ChannelB, chC: ChannelC) {
 }
 
 fun thirdFunction(chC: ChannelC, chD: ChannelD) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val received = chC.channel.receive()
             chD.channel.send(received + 1)
         }
@@ -73,8 +75,8 @@ fun thirdFunction(chC: ChannelC, chD: ChannelD) {
 }
 
 fun fourthFunction(chD: ChannelD, chA: ChannelA, chE: ChannelE) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val received = chD.channel.receive()
             chA.channel.send(received + 1)
             chE.channel.send(received + 2)
@@ -89,15 +91,15 @@ fun main(): Unit{
     val chD = ChannelD(Channel<Int>(1))
     val chE = ChannelE(Channel<Int>(1))
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             firstFunction(chA, chB)
             secondFunction(chB, chC)
             thirdFunction(chC, chD)
             fourthFunction(chD, chA, chE)
         }
 
-        launch {
+        launch(pool) {
             val value = chE.channel.receive()
             println("Final received value: $value")
         }
@@ -107,5 +109,10 @@ fun main(): Unit{
 }
 
 class RunChecker208: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

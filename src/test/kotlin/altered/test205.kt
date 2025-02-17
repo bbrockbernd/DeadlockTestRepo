@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test205
+import org.example.altered.test205.RunChecker205.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -60,7 +62,7 @@ class ChannelManager {
     }
 
     suspend fun receiveAndProcessValuesFromChannelAB() = coroutineScope {
-        launch {
+        launch(pool) {
             repeat(5) {
                 val a = channelA.receive()
                 val b = channelB.receive()
@@ -77,7 +79,7 @@ class ChannelManager {
     }
 
     suspend fun finalProcessing() = coroutineScope {
-        launch {
+        launch(pool) {
             repeat(5) {
                 val e = channelE.receive()
                 channelF.send(e * 2)
@@ -86,14 +88,14 @@ class ChannelManager {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val manager = ChannelManager()
 
-    launch { manager.sendValuesToChannelA() }
-    launch { manager.sendValuesToChannelB() }
-    launch { manager.receiveAndProcessValuesFromChannelAB() }
-    launch { manager.transferValuesFromChannelDToE() }
-    launch { manager.finalProcessing() }
+    launch(pool) { manager.sendValuesToChannelA() }
+    launch(pool) { manager.sendValuesToChannelB() }
+    launch(pool) { manager.receiveAndProcessValuesFromChannelAB() }
+    launch(pool) { manager.transferValuesFromChannelDToE() }
+    launch(pool) { manager.finalProcessing() }
 
     repeat(5) {
         println("Final Result: ${manager.channelF.receive()}")
@@ -101,5 +103,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker205: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

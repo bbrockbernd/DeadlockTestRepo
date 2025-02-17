@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test120
+import org.example.altered.test120.RunChecker120.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -43,59 +45,64 @@ class ChannelHandler {
     val channel = Channel<Int>()
 }
 
-fun function1(handler: ChannelHandler) = runBlocking {
-    launch {
+fun function1(handler: ChannelHandler) = runBlocking(pool) {
+    launch(pool) {
         handler.channel.send(1)
         handler.channel.send(2)
     }
 }
 
-fun function2(handler: ChannelHandler) = runBlocking {
-    launch {
+fun function2(handler: ChannelHandler) = runBlocking(pool) {
+    launch(pool) {
         handler.channel.send(3)
     }
 }
 
-fun function3(handler: ChannelHandler) = runBlocking {
-    launch {
+fun function3(handler: ChannelHandler) = runBlocking(pool) {
+    launch(pool) {
         handler.channel.receive()
         handler.channel.receive() // This call will cause the deadlock
     }
 }
 
-fun function4(handler: ChannelHandler) = runBlocking {
-    launch {
+fun function4(handler: ChannelHandler) = runBlocking(pool) {
+    launch(pool) {
         repeat(2) {
             println(handler.channel.receive())
         }
     }
 }
 
-fun function5(handler: ChannelHandler) = runBlocking {
+fun function5(handler: ChannelHandler) = runBlocking(pool) {
     coroutineScope {
-        launch { 
+        launch(pool) { 
             handler.channel.send(4) 
         }
-        launch { 
+        launch(pool) { 
             handler.channel.send(5) 
         }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val handler = ChannelHandler()
 
-    launch { function1(handler) }
-    launch { function2(handler) }
-    launch { function3(handler) }
-    launch { function4(handler) }
-    launch { function5(handler) }
+    launch(pool) { function1(handler) }
+    launch(pool) { function2(handler) }
+    launch(pool) { function3(handler) }
+    launch(pool) { function4(handler) }
+    launch(pool) { function5(handler) }
 
     // Extra coroutines to meet the requirement of 7 coroutines
-    launch { println("Extra coroutine 1") }
-    launch { println("Extra coroutine 2") }
+    launch(pool) { println("Extra coroutine 1") }
+    launch(pool) { println("Extra coroutine 2") }
 }
 
 class RunChecker120: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

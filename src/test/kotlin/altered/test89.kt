@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test89
+import org.example.altered.test89.RunChecker89.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -43,8 +45,8 @@ class Producer {
     val channel1 = Channel<Int>()
     val channel2 = Channel<String>()
 
-    fun produceNumbers() = runBlocking {
-        launch {
+    fun produceNumbers() = runBlocking(pool) {
+        launch(pool) {
             for (i in 1..10) {
                 channel1.send(i)
             }
@@ -52,8 +54,8 @@ class Producer {
         }
     }
 
-    fun produceStrings() = runBlocking {
-        launch {
+    fun produceStrings() = runBlocking(pool) {
+        launch(pool) {
             for (i in 1..10) {
                 channel2.send("String $i")
             }
@@ -66,8 +68,8 @@ class Consumer {
     val channel3 = Channel<Double>()
     val channel4 = Channel<Char>()
 
-    fun consumeNumbersAndProduceDoubles(channel: ReceiveChannel<Int>) = runBlocking {
-        launch {
+    fun consumeNumbersAndProduceDoubles(channel: ReceiveChannel<Int>) = runBlocking(pool) {
+        launch(pool) {
             for (number in channel) {
                 val doubleValue = number.toDouble()
                 channel3.send(doubleValue)
@@ -76,8 +78,8 @@ class Consumer {
         }
     }
 
-    fun consumeStringsAndProduceChars(channel: ReceiveChannel<String>) = runBlocking {
-        launch {
+    fun consumeStringsAndProduceChars(channel: ReceiveChannel<String>) = runBlocking(pool) {
+        launch(pool) {
             for (str in channel) {
                 val charValue = str.last()
                 channel4.send(charValue)
@@ -88,16 +90,16 @@ class Consumer {
 }
 
 class Processor {
-    fun processDoubles(channel: ReceiveChannel<Double>) = runBlocking {
-        launch {
+    fun processDoubles(channel: ReceiveChannel<Double>) = runBlocking(pool) {
+        launch(pool) {
             for (doubleValue in channel) {
                 println("Processed Double: $doubleValue")
             }
         }
     }
 
-    fun processChars(channel: ReceiveChannel<Char>) = runBlocking {
-        launch {
+    fun processChars(channel: ReceiveChannel<Char>) = runBlocking(pool) {
+        launch(pool) {
             for (charValue in channel) {
                 println("Processed Char: $charValue")
             }
@@ -105,7 +107,7 @@ class Processor {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val producer = Producer()
     val consumer = Consumer()
     val processor = Processor()
@@ -120,15 +122,20 @@ fun main(): Unit= runBlocking {
     processor.processChars(consumer.channel4)
 
     coroutineScope {
-        launch { processor.processDoubles(consumer.channel3) }
-        launch { processor.processChars(consumer.channel4) }
-        launch { consumer.consumeNumbersAndProduceDoubles(producer.channel1) }
-        launch { consumer.consumeStringsAndProduceChars(producer.channel2) }
-        launch { producer.produceNumbers() }
-        launch { producer.produceStrings() }
+        launch(pool) { processor.processDoubles(consumer.channel3) }
+        launch(pool) { processor.processChars(consumer.channel4) }
+        launch(pool) { consumer.consumeNumbersAndProduceDoubles(producer.channel1) }
+        launch(pool) { consumer.consumeStringsAndProduceChars(producer.channel2) }
+        launch(pool) { producer.produceNumbers() }
+        launch(pool) { producer.produceStrings() }
     }
 }
 
 class RunChecker89: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

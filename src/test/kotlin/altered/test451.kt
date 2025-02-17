@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test451
+import org.example.altered.test451.RunChecker451.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -64,25 +66,25 @@ class Receiver(val name: String) {
     }
 }
 
-fun createMessages(producer: Producer, msgs: List<String>) = runBlocking {
+fun createMessages(producer: Producer, msgs: List<String>) = runBlocking(pool) {
     coroutineScope {
         repeat(msgs.size) {
-            launch {
+            launch(pool) {
                 producer.produceMessage(msgs[it])
             }
         }
     }
 }
 
-fun distributeMessages(producer: Producer, receiver: Receiver) = runBlocking {
+fun distributeMessages(producer: Producer, receiver: Receiver) = runBlocking(pool) {
     coroutineScope {
-        launch {
+        launch(pool) {
             producer.sendTo(receiver)
         }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val producer1 = Producer("Producer1")
     val producer2 = Producer("Producer2")
 
@@ -92,20 +94,20 @@ fun main(): Unit= runBlocking {
     val msgList1 = listOf("Message1", "Message2", "Message3")
     val msgList2 = listOf("MessageA", "MessageB", "MessageC")
 
-    launch { createMessages(producer1, msgList1) }
-    launch { createMessages(producer2, msgList2) }
-    launch { distributeMessages(producer1, receiver1) }
-    launch { distributeMessages(producer1, receiver2) }
-    launch { distributeMessages(producer2, receiver1) }
-    launch { distributeMessages(producer2, receiver2) }
+    launch(pool) { createMessages(producer1, msgList1) }
+    launch(pool) { createMessages(producer2, msgList2) }
+    launch(pool) { distributeMessages(producer1, receiver1) }
+    launch(pool) { distributeMessages(producer1, receiver2) }
+    launch(pool) { distributeMessages(producer2, receiver1) }
+    launch(pool) { distributeMessages(producer2, receiver2) }
 
-    launch {
+    launch(pool) {
         repeat(msgList1.size) {
             println(receiver1.read())
         }
     }
     
-    launch {
+    launch(pool) {
         repeat(msgList2.size) {
             println(receiver2.read())
         }
@@ -113,5 +115,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker451: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

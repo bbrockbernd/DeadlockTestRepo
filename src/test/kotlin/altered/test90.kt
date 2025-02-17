@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test90
+import org.example.altered.test90.RunChecker90.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -74,8 +76,8 @@ suspend fun transferValues(producer: Producer, consumer: Consumer) {
 }
 
 fun triggerDeadlock(producer: Producer, consumer: Consumer) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             transferValues(producer, consumer)
         }
     }
@@ -93,5 +95,10 @@ fun main(): Unit{
 }
 
 class RunChecker90: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

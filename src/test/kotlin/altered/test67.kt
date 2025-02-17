@@ -35,11 +35,13 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test67
+import org.example.altered.test67.RunChecker67.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import kotlinx.coroutines.delay
 
 class ExampleClass {
@@ -65,11 +67,11 @@ class ExampleClass {
     }
 
     suspend fun startCoroutines() = coroutineScope {
-        launch { produceNumbers() }
-        launch { consumeNumbers() }
+        launch(pool) { produceNumbers() }
+        launch(pool) { consumeNumbers() }
     }
 
-    fun runExample() = runBlocking {
+    fun runExample() = runBlocking(pool) {
         startCoroutines()
     }
 }
@@ -109,5 +111,10 @@ fun main(): Unit{
 }
 
 class RunChecker67: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

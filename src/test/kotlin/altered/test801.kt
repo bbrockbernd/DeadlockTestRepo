@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test801
+import org.example.altered.test801.RunChecker801.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -63,29 +65,29 @@ class ChannelManager(
     }
 }
 
-fun receiveAndSendIntData(channelManager: ChannelManager, inputChannel: Channel<Int>, outputChannel: Channel<Int>) = runBlocking {
-    launch {
+fun receiveAndSendIntData(channelManager: ChannelManager, inputChannel: Channel<Int>, outputChannel: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val data = inputChannel.receive()
         channelManager.sendDataToChannelA(data)
     }
-    launch {
+    launch(pool) {
         val data = inputChannel.receive()
         channelManager.sendDataToChannelB(data)
     }
 }
 
-fun receiveAndSendStringData(channelManager: ChannelManager, inputChannel: Channel<String>, outputChannel: Channel<String>) = runBlocking {
-    launch {
+fun receiveAndSendStringData(channelManager: ChannelManager, inputChannel: Channel<String>, outputChannel: Channel<String>) = runBlocking(pool) {
+    launch(pool) {
         val data = inputChannel.receive()
         channelManager.sendDataToChannelC(data)
     }
-    launch {
+    launch(pool) {
         val data = inputChannel.receive()
         channelManager.sendDataToChannelD(data)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<String>()
@@ -93,26 +95,31 @@ fun main(): Unit= runBlocking {
     
     val channelManager = ChannelManager(channel1, channel2, channel3, channel4)
     
-    launch {
+    launch(pool) {
         receiveAndSendIntData(channelManager, channel1, channel2)
     }
     
-    launch {
+    launch(pool) {
         receiveAndSendStringData(channelManager, channel3, channel4)
     }
     
     // Simulate data sending
-    launch {
+    launch(pool) {
         channel1.send(10)
         channel1.send(20)
     }
 
-    launch {
+    launch(pool) {
         channel3.send("Hello")
         channel3.send("World")
     }
 }
 
 class RunChecker801: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

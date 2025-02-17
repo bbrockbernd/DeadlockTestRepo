@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test792
+import org.example.altered.test792.RunChecker792.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -60,18 +62,18 @@ suspend fun receiveFromSecondClass(secondClass: SecondClass): String {
     return secondClass.receiveMessage()
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<String>()
     val channel2 = Channel<String>()
 
     val firstClassInstance = FirstClass(channel1)
     val secondClassInstance = SecondClass(channel2)
 
-    launch {
+    launch(pool) {
         sendToFirstClass(firstClassInstance)
     }
 
-    launch {
+    launch(pool) {
         val message = receiveFromSecondClass(secondClassInstance)
         println(message)
     }
@@ -80,5 +82,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker792: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,11 +36,13 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test664
+import org.example.altered.test664.RunChecker664.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 
 class ChannelManagerA {
     val channelA = Channel<Int>()
@@ -75,48 +77,48 @@ class ChannelManagerC {
     }
 }
 
-fun functionA(channelManagerA: ChannelManagerA) = runBlocking {
+fun functionA(channelManagerA: ChannelManagerA) = runBlocking(pool) {
     coroutineScope {
-        launch {
+        launch(pool) {
             channelManagerA.provideDataA()
         }
-        launch {
+        launch(pool) {
             println(channelManagerA.consumeDataA())
         }
     }
 }
 
-fun functionB(channelManagerB: ChannelManagerB) = runBlocking {
+fun functionB(channelManagerB: ChannelManagerB) = runBlocking(pool) {
     coroutineScope {
-        launch {
+        launch(pool) {
             channelManagerB.provideDataB()
         }
-        launch {
+        launch(pool) {
             println(channelManagerB.consumeDataB())
         }
     }
 }
 
-fun functionC(channelManagerC: ChannelManagerC) = runBlocking {
+fun functionC(channelManagerC: ChannelManagerC) = runBlocking(pool) {
     coroutineScope {
-        launch {
+        launch(pool) {
             channelManagerC.provideDataC()
         }
-        launch {
+        launch(pool) {
             println(channelManagerC.consumeDataC())
         }
     }
 }
 
-fun functionD() = runBlocking {
+fun functionD() = runBlocking(pool) {
     val channelManagerA = ChannelManagerA()
     val channelManagerB = ChannelManagerB()
     val channelManagerC = ChannelManagerC()
 
     coroutineScope {
-        launch { functionA(channelManagerA) }
-        launch { functionB(channelManagerB) }
-        launch { functionC(channelManagerC) }
+        launch(pool) { functionA(channelManagerA) }
+        launch(pool) { functionB(channelManagerB) }
+        launch(pool) { functionC(channelManagerC) }
     }
 }
 
@@ -125,5 +127,10 @@ fun main(): Unit{
 }
 
 class RunChecker664: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

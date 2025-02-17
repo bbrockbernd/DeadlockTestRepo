@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test935
+import org.example.altered.test935.RunChecker935.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -51,7 +53,7 @@ class Communicator(val channel1: Channel<Int>, val channel2: Channel<Int>) {
 }
 
 fun CoroutineScope.producer(channel: Channel<Int>) {
-    launch {
+    launch(pool) {
         repeat(5) {
             println("Producer sending $it")
             channel.send(it)
@@ -68,7 +70,7 @@ suspend fun consumer(channel: Channel<Int>) {
 }
 
 fun CoroutineScope.intermittentProcessor(inputChannel: Channel<Int>, outputChannel: Channel<Int>) {
-    launch {
+    launch(pool) {
         for (item in inputChannel) {
             println("Processor converting $item to ${item * 2}")
             outputChannel.send(item * 2)
@@ -77,7 +79,7 @@ fun CoroutineScope.intermittentProcessor(inputChannel: Channel<Int>, outputChann
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -86,13 +88,18 @@ fun main(): Unit= runBlocking {
 
     producer(channel1)
     intermittentProcessor(channel1, channel2)
-    launch { consumer(channel2) }
-    launch { 
+    launch(pool) { consumer(channel2) }
+    launch(pool) { 
         communicator.sendData(42) 
         println("Communicator received ${communicator.receiveData()}")
     }
 }
 
 class RunChecker935: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

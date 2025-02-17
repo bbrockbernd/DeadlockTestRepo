@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test110
+import org.example.altered.test110.RunChecker110.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -46,14 +48,14 @@ class D(val channel: Channel<Char>)
 class E(val channel: Channel<Boolean>)
 
 fun function1(a: A, b: B) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             for (i in 1..5) {
                 a.channel.send(i)
                 println("Sent integer $i to A's channel")
             }
         }
-        launch {
+        launch(pool) {
             for (j in 1..5) {
                 val received = b.channel.receive()
                 println("Received double $received from B's channel")
@@ -63,8 +65,8 @@ fun function1(a: A, b: B) {
 }
 
 fun function2(c: C) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             for (k in 1..5) {
                 c.channel.send("Message $k")
                 println("Sent message $k to C's channel")
@@ -74,8 +76,8 @@ fun function2(c: C) {
 }
 
 fun function3(c: C, d: D) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             for (l in 1..5) {
                 val received = c.channel.receive()
                 println("Received string $received from C's channel")
@@ -87,8 +89,8 @@ fun function3(c: C, d: D) {
 }
 
 fun function4(d: D, e: E) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             for (m in 1..5) {
                 val received = d.channel.receive()
                 println("Received char $received from D's channel")
@@ -100,8 +102,8 @@ fun function4(d: D, e: E) {
 }
 
 fun function5(e: E) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             for (n in 1..5) {
                 val received = e.channel.receive()
                 println("Received boolean $received from E's channel")
@@ -111,8 +113,8 @@ fun function5(e: E) {
 }
 
 fun function6(a: A, b: B) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             for (o in 1..5) {
                 val intReceived = a.channel.receive()
                 println("Received integer $intReceived from A's channel")
@@ -145,5 +147,10 @@ fun main(): Unit {
 }
 
 class RunChecker110: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test610
+import org.example.altered.test610.RunChecker610.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -55,10 +57,10 @@ class MessageProcessor {
 
     suspend fun processIncomingMessages() {
         coroutineScope {
-            launch { processChannel(channel1) }
-            launch { processChannel(channel2) }
-            launch { processChannel(channel3) }
-            launch { processChannel(channel4) }
+            launch(pool) { processChannel(channel1) }
+            launch(pool) { processChannel(channel2) }
+            launch(pool) { processChannel(channel3) }
+            launch(pool) { processChannel(channel4) }
         }
     }
 
@@ -69,14 +71,19 @@ class MessageProcessor {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val processor = MessageProcessor()
-    launch { processor.sendMessageToChannels("Message1", true, true, false, true) }
-    launch { processor.sendMessageToChannels("Message2", false, true, true, false) }
-    launch { processor.sendMessageToChannels("Message3", true, false, true, false) }
+    launch(pool) { processor.sendMessageToChannels("Message1", true, true, false, true) }
+    launch(pool) { processor.sendMessageToChannels("Message2", false, true, true, false) }
+    launch(pool) { processor.sendMessageToChannels("Message3", true, false, true, false) }
     processor.processIncomingMessages()
 }
 
 class RunChecker610: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

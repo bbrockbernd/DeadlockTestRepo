@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test607
+import org.example.altered.test607.RunChecker607.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -61,14 +63,14 @@ class Coordinator(private val channel: Channel<Int>) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel = Channel<Int>()
 
-    val job1 = launch {
+    val job1 = launch(pool) {
         Coordinator(channel).coordinate()
     }
 
-    val job2 = launch {
+    val job2 = launch(pool) {
         delay(100)  // Cause a delay to exacerbate deadlock
         Consumer(channel).consume()
     }
@@ -77,5 +79,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker607: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

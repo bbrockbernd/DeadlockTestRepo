@@ -35,11 +35,13 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test401
+import org.example.altered.test401.RunChecker401.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>(5) // Buffered channel
     val channel3 = Channel<Int>()
@@ -56,49 +58,54 @@ fun main(): Unit= runBlocking {
     delay(1000) // Let coroutines finish
 }
 
-fun CoroutineScope.launchSender1(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchSender1(channel: Channel<Int>) = launch(pool) {
     for (i in 1..5) {
         channel.send(i)
     }
 }
 
-fun CoroutineScope.launchSender2(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchSender2(channel: Channel<Int>) = launch(pool) {
     for (i in 1..5) {
         channel.send(i * 10)
     }
 }
 
-fun CoroutineScope.launchReceiver1(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchReceiver1(channel: Channel<Int>) = launch(pool) {
     repeat(5) {
         println("Receiver1 received: ${channel.receive()}")
     }
 }
 
-fun CoroutineScope.launchReceiver2(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchReceiver2(channel: Channel<Int>) = launch(pool) {
     repeat(5) {
         println("Receiver2 received: ${channel.receive()}")
     }
 }
 
-fun CoroutineScope.launchRelay(channelIn: Channel<Int>, channelOut: Channel<Int>) = launch {
+fun CoroutineScope.launchRelay(channelIn: Channel<Int>, channelOut: Channel<Int>) = launch(pool) {
     repeat(5) {
         val receivedValue = channelIn.receive()
         channelOut.send(receivedValue * 2)
     }
 }
 
-fun CoroutineScope.launchReceiver3(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchReceiver3(channel: Channel<Int>) = launch(pool) {
     repeat(5) {
         println("Receiver3 received: ${channel.receive()}")
     }
 }
 
-fun CoroutineScope.launchSender3(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchSender3(channel: Channel<Int>) = launch(pool) {
     for (i in 6..10) {
         channel.send(i)
     }
 }
 
 class RunChecker401: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

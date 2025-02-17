@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test460
+import org.example.altered.test460.RunChecker460.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -62,10 +64,10 @@ class ChannelHandler(val inputChannel: Channel<Int>, val outputChannel: Channel<
 }
 
 class Executor(val processor: TaskProcessor, val handler: ChannelHandler) {
-    fun executeTasks() = runBlocking {
-        launch { handler.handleInput() }
-        launch { processor.processTasks() }
-        launch { handler.handleOutput() }
+    fun executeTasks() = runBlocking(pool) {
+        launch(pool) { handler.handleInput() }
+        launch(pool) { processor.processTasks() }
+        launch(pool) { handler.handleOutput() }
     }
 }
 
@@ -89,15 +91,20 @@ fun main(): Unit{
     val handler = createHandler(inputChannel, outputChannel)
     val executor = Executor(processor, handler)
     
-    runBlocking {
-        val job1 = launch { executor.executeTasks() }
-        val job2 = launch { handler.handleInput() }
-        val job3 = launch { processor.processTasks() }
-        val job4 = launch { handler.handleOutput() }
-        val job5 = launch { executor.executeTasks() }
+    runBlocking(pool) {
+        val job1 = launch(pool) { executor.executeTasks() }
+        val job2 = launch(pool) { handler.handleInput() }
+        val job3 = launch(pool) { processor.processTasks() }
+        val job4 = launch(pool) { handler.handleOutput() }
+        val job5 = launch(pool) { executor.executeTasks() }
     }
 }
 
 class RunChecker460: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

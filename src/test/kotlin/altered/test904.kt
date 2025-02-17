@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test904
+import org.example.altered.test904.RunChecker904.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -66,26 +68,26 @@ class ClassB {
     }
 }
 
-fun configChannelA(classA: ClassA) = runBlocking {
-    launch {
+fun configChannelA(classA: ClassA) = runBlocking(pool) {
+    launch(pool) {
         classA.sendToChannel1(1)
         classA.receiveFromChannel2()
     }
 }
 
-fun configChannelB(classB: ClassB) = runBlocking {
-    launch {
+fun configChannelB(classB: ClassB) = runBlocking(pool) {
+    launch(pool) {
         classB.sendToChannel3(2)
         classB.receiveFromChannel4()
     }
 }
 
-fun initiateDeadlock(classA: ClassA, classB: ClassB) = runBlocking {
-    val job1 = launch {
+fun initiateDeadlock(classA: ClassA, classB: ClassB) = runBlocking(pool) {
+    val job1 = launch(pool) {
         classA.sendToChannel1(classB.receiveFromChannel4())
     }
 
-    val job2 = launch {
+    val job2 = launch(pool) {
         classB.sendToChannel3(classA.receiveFromChannel2())
     }
 
@@ -93,15 +95,15 @@ fun initiateDeadlock(classA: ClassA, classB: ClassB) = runBlocking {
     job2.join()
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val classA = ClassA()
     val classB = ClassB()
 
-    launch {
+    launch(pool) {
         configChannelA(classA)
     }
 
-    launch {
+    launch(pool) {
         configChannelB(classB)
     }
 
@@ -109,5 +111,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker904: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

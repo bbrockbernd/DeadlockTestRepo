@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test268
+import org.example.altered.test268.RunChecker268.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -46,9 +48,9 @@ class DataProcessor1
 class DataProcessor2
 
 fun processData1(channelHandler1: ChannelHandler1, dataProcessor1: DataProcessor1) {
-    runBlocking {
+    runBlocking(pool) {
         coroutineScope {
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val received = channelHandler1.channel1.receive()
                     channelHandler1.channel2.send(received * 2)
@@ -59,16 +61,16 @@ fun processData1(channelHandler1: ChannelHandler1, dataProcessor1: DataProcessor
 }
 
 fun processData2(channelHandler2: ChannelHandler2, channelHandler3: ChannelHandler3, dataProcessor2: DataProcessor2) {
-    runBlocking {
+    runBlocking(pool) {
         coroutineScope {
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val received = channelHandler2.channel3.receive()
                     channelHandler3.channel5.send(received + 1)
                 }
             }
 
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val received = channelHandler3.channel5.receive()
                     channelHandler2.channel4.send(received - 1)
@@ -91,29 +93,29 @@ fun main(): Unit{
     val dataProcessor1 = DataProcessor1()
     val dataProcessor2 = DataProcessor2()
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 channel1.send(it)
             }
         }
 
-        launch {
+        launch(pool) {
             processData1(channelHandler1, dataProcessor1)
         }
 
-        launch {
+        launch(pool) {
             repeat(5) {
                 val received = channel2.receive()
                 channel3.send(received)
             }
         }
 
-        launch {
+        launch(pool) {
             processData2(channelHandler2, channelHandler3, dataProcessor2)
         }
 
-        launch {
+        launch(pool) {
             repeat(5) {
                 val received = channel4.receive()
                 println("Processed data: $received")
@@ -123,5 +125,10 @@ fun main(): Unit{
 }
 
 class RunChecker268: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

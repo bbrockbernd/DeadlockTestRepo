@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test612
+import org.example.altered.test612.RunChecker612.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -69,7 +71,7 @@ suspend fun transferValues(channel1: Channel<Int>, channel2: Channel<Int>) {
     channel2.send(value)
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
     val channelC = Channel<Int>()
@@ -77,15 +79,15 @@ fun main(): Unit= runBlocking {
     val producer = Producer(channelA)
     val consumer = Consumer(channelC)
 
-    launch {
+    launch(pool) {
         produceValues(producer)
     }
 
-    launch {
+    launch(pool) {
         transferValues(channelA, channelB)
     }
 
-    launch {
+    launch(pool) {
         transferValues(channelB, channelC)
         // Intentional deadlock: This coroutine will wait indefinitely as transferValues in another coroutine won't be able to send value to this channel due to deadlock
     }
@@ -94,5 +96,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker612: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

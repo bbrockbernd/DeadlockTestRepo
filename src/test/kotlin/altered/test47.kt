@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test47
+import org.example.altered.test47.RunChecker47.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -48,8 +50,8 @@ class DeadlockDemo {
     val channel6 = Channel<Int>()
 
     fun function1() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 channel1.send(1)
                 val receivedValue = channel6.receive()
             }
@@ -57,8 +59,8 @@ class DeadlockDemo {
     }
 
     fun function2() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val receivedValue = channel1.receive()
                 channel2.send(receivedValue + 1)
             }
@@ -66,8 +68,8 @@ class DeadlockDemo {
     }
 
     fun function3() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val receivedValue = channel2.receive()
                 channel3.send(receivedValue + 1)
             }
@@ -75,8 +77,8 @@ class DeadlockDemo {
     }
 
     fun function4() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val receivedValue = channel3.receive()
                 channel4.send(receivedValue + 1)
             }
@@ -84,8 +86,8 @@ class DeadlockDemo {
     }
 
     fun function5() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val receivedValue = channel4.receive()
                 channel5.send(receivedValue + 1)
             }
@@ -93,8 +95,8 @@ class DeadlockDemo {
     }
 
     fun function6() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val receivedValue = channel5.receive()
                 channel6.send(receivedValue + 1)
             }
@@ -102,8 +104,8 @@ class DeadlockDemo {
     }
 
     fun function7() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 channel6.send(1)
                 val receivedValue = channel1.receive()
             }
@@ -111,8 +113,8 @@ class DeadlockDemo {
     }
 
     fun function8() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val receivedValue = channel6.receive()
                 channel1.send(receivedValue + 1)
             }
@@ -133,5 +135,10 @@ fun main(): Unit {
 }
 
 class RunChecker47: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

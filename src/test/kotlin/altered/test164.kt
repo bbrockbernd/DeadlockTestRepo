@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test164
+import org.example.altered.test164.RunChecker164.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -84,7 +86,7 @@ class ConsumerB(val channel: Channel<Int>) {
     }
 }
 
-fun mainFunction() = runBlocking {
+fun mainFunction() = runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -95,26 +97,31 @@ fun mainFunction() = runBlocking {
     val intermediateConsumer = IntermediateConsumer(channel1, channel2)
     val consumerB = ConsumerB(channel3)
 
-    launch { producerA.produce() }
-    launch { intermediateConsumer.process() }
-    launch { producerB.produce() }
-    launch {
+    launch(pool) { producerA.produce() }
+    launch(pool) { intermediateConsumer.process() }
+    launch(pool) { producerB.produce() }
+    launch(pool) {
         val resultA = consumerA.consume()
         println("Consumer A Consumed Sum: $resultA")
     }
-    launch {
+    launch(pool) {
         val resultB = consumerB.consume()
         println("Consumer B Consumed Product: $resultB")
     }
 
     // These additional coroutines add to the complexity and potential deadlocks
-    launch { producerA.produce() }
-    launch { producerB.produce() }
+    launch(pool) { producerA.produce() }
+    launch(pool) { producerB.produce() }
 }
 fun main(): Unit{
     mainFunction()
 }
 
 class RunChecker164: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

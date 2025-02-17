@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test620
+import org.example.altered.test620.RunChecker620.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -57,19 +59,19 @@ class Consumer(val input: Channel<Int>, val output: Channel<Int>) {
 
 fun producerAction(channel: Channel<Int>) {
     val producer = Producer(channel)
-    runBlocking { producer.produce() }
+    runBlocking(pool) { producer.produce() }
 }
 
 fun consumerAction(input: Channel<Int>, output: Channel<Int>) {
     val consumer = Consumer(input, output)
-    runBlocking { consumer.consume() }
+    runBlocking(pool) { consumer.consume() }
 }
 
 fun SimpleProcess(one: Channel<Int>, two: Channel<Int>, three: Channel<Int>, four: Channel<Int>, five: Channel<Int>) {
-    runBlocking {
-        launch { producerAction(one) }
-        launch { consumerAction(one, two) }
-        launch { consumerAction(two, three) }
+    runBlocking(pool) {
+        launch(pool) { producerAction(one) }
+        launch(pool) { consumerAction(one, two) }
+        launch(pool) { consumerAction(two, three) }
     }
 }
 
@@ -82,7 +84,7 @@ fun main(): Unit{
 
     SimpleProcess(channelOne, channelTwo, channelThree, channelFour, channelFive)
 
-    runBlocking { 
+    runBlocking(pool) { 
         while (!channelThree.isEmpty) {
             println(channelThree.receive())
         } 
@@ -90,5 +92,10 @@ fun main(): Unit{
 }
 
 class RunChecker620: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

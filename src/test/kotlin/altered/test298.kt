@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test298
+import org.example.altered.test298.RunChecker298.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -76,7 +78,7 @@ fun function1(channel: Channel<Int>): ReceiveChannel<Int> = channel
 fun function2(channel: Channel<String>): ReceiveChannel<String> = channel
 
 fun function3(channel: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 10..15) {
             channel.send(i)
         }
@@ -85,7 +87,7 @@ fun function3(channel: Channel<Int>) {
 }
 
 fun function4(channel: Channel<String>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 20..25) {
             channel.send("Text_$i")
         }
@@ -94,7 +96,7 @@ fun function4(channel: Channel<String>) {
 }
 
 fun function5(channel: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 30..35) {
             channel.send(i)
         }
@@ -103,7 +105,7 @@ fun function5(channel: Channel<Int>) {
 }
 
 fun function6(channel: Channel<String>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in 40..45) {
             channel.send("Data_$i")
         }
@@ -112,7 +114,7 @@ fun function6(channel: Channel<String>) {
 }
 
 fun function7(channel: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in channel) {
             println("Received Int: $i")
         }
@@ -120,14 +122,14 @@ fun function7(channel: Channel<Int>) {
 }
 
 fun function8(channel: Channel<String>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (i in channel) {
             println("Received String: $i")
         }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<String>()
     val channel3 = Channel<Int>()
@@ -139,14 +141,14 @@ fun main(): Unit= runBlocking {
     val dataProducer2 = DataProducer2(channel2)
     val dataConsumer = DataConsumer(channel1, channel2)
 
-    launch { dataProducer1.produce() }
-    launch { dataProducer2.produce() }
-    launch { function3(channel3) }
-    launch { function4(channel4) }
-    launch { function5(channel5) }
-    launch { function6(channel6) }
-    launch { function7(channel3) }
-    launch { function8(channel4) }
+    launch(pool) { dataProducer1.produce() }
+    launch(pool) { dataProducer2.produce() }
+    launch(pool) { function3(channel3) }
+    launch(pool) { function4(channel4) }
+    launch(pool) { function5(channel5) }
+    launch(pool) { function6(channel6) }
+    launch(pool) { function7(channel3) }
+    launch(pool) { function8(channel4) }
 
     coroutineScope {
         val result = dataConsumer.consume()
@@ -155,5 +157,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker298: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

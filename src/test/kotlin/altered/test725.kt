@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test725
+import org.example.altered.test725.RunChecker725.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -46,7 +48,7 @@ class Producer {
 
     suspend fun produce() {
         coroutineScope {
-            launch {
+            launch(pool) {
                 channel1.send(1)
                 channel2.send(orReceive(channel1))
             }
@@ -68,15 +70,15 @@ class Consumer {
 
     suspend fun consume() {
         coroutineScope {
-            launch {
+            launch(pool) {
                 val result1 = channel3.receive()
                 channel4.send(result1 + 1)
             }
-            launch {
+            launch(pool) {
                 val result2 = channel4.receive()
                 channel5.send(result2 + 1)
             }
-            launch {
+            launch(pool) {
                 channel5.receive()
                 channel3.send(1)
             }
@@ -88,27 +90,32 @@ class Consumer {
     fun getChannel5(): Channel<Int> = channel5
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val producer = Producer()
     val consumer = Consumer()
 
-    launch {
+    launch(pool) {
         producer.produce()
     }
 
-    launch {
+    launch(pool) {
         consumer.consume()
     }
 
-    launch {
+    launch(pool) {
         consumer.getChannel3().send(producer.getChannel1().receive())
     }
 
-    launch {
+    launch(pool) {
         consumer.getChannel4().send(producer.getChannel2().receive())
     }
 }
 
 class RunChecker725: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

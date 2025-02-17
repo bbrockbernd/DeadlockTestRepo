@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test767
+import org.example.altered.test767.RunChecker767.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -48,33 +50,33 @@ class ChannelManager {
     val channel5 = Channel<Int>()
 }
 
-fun functionA(channelManager: ChannelManager) = runBlocking {
-    launch {
+fun functionA(channelManager: ChannelManager) = runBlocking(pool) {
+    launch(pool) {
         val value = channelManager.channel1.receive()
         channelManager.channel2.send(value)
     }
 }
 
-fun functionB(channelManager: ChannelManager) = runBlocking {
-    launch {
+fun functionB(channelManager: ChannelManager) = runBlocking(pool) {
+    launch(pool) {
         val value = channelManager.channel2.receive()
         channelManager.channel3.send(value)
     }
 }
 
-fun functionC(channelManager: ChannelManager) = runBlocking {
-    launch {
+fun functionC(channelManager: ChannelManager) = runBlocking(pool) {
+    launch(pool) {
         val value = channelManager.channel3.receive()
         channelManager.channel1.send(value)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelManager = ChannelManager()
     
-    launch { functionA(channelManager) }
-    launch { functionB(channelManager) }
-    launch { functionC(channelManager) }
+    launch(pool) { functionA(channelManager) }
+    launch(pool) { functionB(channelManager) }
+    launch(pool) { functionC(channelManager) }
 
     channelManager.channel1.send(1) // Initial send to kick things off
 
@@ -82,5 +84,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker767: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

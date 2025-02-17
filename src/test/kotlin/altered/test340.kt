@@ -35,19 +35,21 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test340
+import org.example.altered.test340.RunChecker340.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class Resource(val dataChannel: Channel<String>, val ackChannel: Channel<Unit>)
 
 fun function1(resource: Resource) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             resource.dataChannel.send("Message1")
             resource.ackChannel.receive()
         }
-        launch {
+        launch(pool) {
             resource.dataChannel.send("Message2")
             resource.ackChannel.receive()
         }
@@ -55,12 +57,12 @@ fun function1(resource: Resource) {
 }
 
 fun function2(resource: Resource) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             resource.dataChannel.send("Message3")
             resource.ackChannel.receive()
         }
-        launch {
+        launch(pool) {
             resource.dataChannel.send("Message4")
             resource.ackChannel.receive()
         }
@@ -68,23 +70,23 @@ fun function2(resource: Resource) {
 }
 
 fun function3(resource: Resource) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val msg = resource.dataChannel.receive()
             println("Received: $msg")
             resource.ackChannel.send(Unit)
         }
-        launch {
+        launch(pool) {
             val msg = resource.dataChannel.receive()
             println("Received: $msg")
             resource.ackChannel.send(Unit)
         }
-        launch {
+        launch(pool) {
             val msg = resource.dataChannel.receive()
             println("Received: $msg")
             resource.ackChannel.send(Unit)
         }
-        launch {
+        launch(pool) {
             val msg = resource.dataChannel.receive()
             println("Received: $msg")
             resource.ackChannel.send(Unit)
@@ -97,19 +99,24 @@ fun main(): Unit {
     val ackChannel = Channel<Unit>()
     val resource = Resource(dataChannel, ackChannel)
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             function1(resource)
         }
-        launch {
+        launch(pool) {
             function2(resource)
         }
-        launch {
+        launch(pool) {
             function3(resource)
         }
     }
 }
 
 class RunChecker340: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

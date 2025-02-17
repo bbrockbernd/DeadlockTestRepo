@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test879
+import org.example.altered.test879.RunChecker879.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -71,36 +73,41 @@ suspend fun sendToThirdChannel(sourceChannel: Channel<Int>, destChannel: Channel
 fun CoroutineScope.runScenario() {
     val (chan1, chan2, chan3) = createChannels()
 
-    launch {
+    launch(pool) {
         val producer = Producer(chan1)
         val consumer = Consumer(chan1)
         producer.produce()
         consumer.consume { println("Consume from chan1: $it") }
     }
 
-    launch {
+    launch(pool) {
         sendToThirdChannel(chan1, chan2)
     }
 
-    launch {
+    launch(pool) {
         val consumer2 = Consumer(chan2)
         consumer2.consume { println("Consume from chan2: $it") }
     }
 
-    launch {
+    launch(pool) {
         sendToThirdChannel(chan2, chan3)
     }
 
-    launch {
+    launch(pool) {
         val consumer3 = Consumer(chan3)
         consumer3.consume { println("Consume from chan3: $it") }
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     runScenario()
 }
 
 class RunChecker879: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

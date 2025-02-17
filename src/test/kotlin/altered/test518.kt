@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test518
+import org.example.altered.test518.RunChecker518.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -51,40 +53,40 @@ class Process {
     }
 }
 
-fun startProcess(p: Process, input: Channel<Int>) = GlobalScope.launch {
+fun startProcess(p: Process, input: Channel<Int>) = GlobalScope.launch(pool) {
     for (value in input) {
         p.inputChannel.send(value)
     }
 }
 
-fun mainProcessor(input: Channel<Int>, output: Channel<Int>) = GlobalScope.launch {
+fun mainProcessor(input: Channel<Int>, output: Channel<Int>) = GlobalScope.launch(pool) {
     val p1 = Process()
     val p2 = Process()
     
     startProcess(p1, input)
-    GlobalScope.launch { p1.processData() }
+    GlobalScope.launch(pool) { p1.processData() }
     startProcess(p2, p1.outputChannel)
-    GlobalScope.launch { p2.processData() }
+    GlobalScope.launch(pool) { p2.processData() }
     
     for (result in p2.outputChannel) {
         output.send(result)
     }
 }
 
-fun source(input: Channel<Int>) = GlobalScope.launch {
+fun source(input: Channel<Int>) = GlobalScope.launch(pool) {
     repeat(10) {
         input.send(it)
     }
     input.close()
 }
 
-fun sink(output: Channel<Int>) = GlobalScope.launch {
+fun sink(output: Channel<Int>) = GlobalScope.launch(pool) {
     for (result in output) {
         println(result)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val input = Channel<Int>()
     val output = Channel<Int>()
 
@@ -96,5 +98,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker518: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

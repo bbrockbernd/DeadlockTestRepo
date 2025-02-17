@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test913
+import org.example.altered.test913.RunChecker913.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -65,22 +67,27 @@ class Processor(private val channel: Channel<Int>) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel = Channel<Int>()
 
     val producer = Producer(channel)
     val consumer = Consumer(channel)
     val processor = Processor(channel)
 
-    launch { producer.produce() }
-    launch { consumer.consume() }
-    launch { processor.process() }
-    launch { processor.process() }
-    launch { producer.produce() }
+    launch(pool) { producer.produce() }
+    launch(pool) { consumer.consume() }
+    launch(pool) { processor.process() }
+    launch(pool) { processor.process() }
+    launch(pool) { producer.produce() }
     
     println("This will never get printed due to deadlock")
 }
 
 class RunChecker913: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test297
+import org.example.altered.test297.RunChecker297.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -61,8 +63,8 @@ val manager2 = ChannelManager2()
 val manager3 = ChannelManager3()
 val manager4 = ChannelManager4()
 
-fun function1() = runBlocking {
-    val job1 = launch {
+fun function1() = runBlocking(pool) {
+    val job1 = launch(pool) {
         manager1.channel1.send(1)
     }
     job1.invokeOnCompletion {
@@ -71,9 +73,9 @@ fun function1() = runBlocking {
     function4()
 }
 
-fun function2() = runBlocking {
+fun function2() = runBlocking(pool) {
     coroutineScope {
-        val job2 = launch {
+        val job2 = launch(pool) {
             manager2.channel2.send(manager1.channel1.receive())
         }
         job2.invokeOnCompletion {
@@ -82,9 +84,9 @@ fun function2() = runBlocking {
     }
 }
 
-fun function3() = runBlocking {
+fun function3() = runBlocking(pool) {
     coroutineScope {
-        val job3 = launch {
+        val job3 = launch(pool) {
             manager4.channel4.send(manager2.channel2.receive())
         }
         job3.invokeOnCompletion {
@@ -94,16 +96,16 @@ fun function3() = runBlocking {
 }
 
 fun function4() {
-    runBlocking {
+    runBlocking(pool) {
         function1()
         function2()
         function7()
     }
 }
 
-fun function5() = runBlocking {
+fun function5() = runBlocking(pool) {
     coroutineScope {
-        val job4 = launch {
+        val job4 = launch(pool) {
             manager3.channel3.send(manager4.channel4.receive())
         }
         job4.invokeOnCompletion {
@@ -112,9 +114,9 @@ fun function5() = runBlocking {
     }
 }
 
-fun function6() = runBlocking {
+fun function6() = runBlocking(pool) {
     coroutineScope {
-        val job5 = launch {
+        val job5 = launch(pool) {
             manager3.channel3.send(manager4.channel5.receive())
         }
         job5.invokeOnCompletion {
@@ -123,9 +125,9 @@ fun function6() = runBlocking {
     }
 }
 
-fun function7() = runBlocking {
+fun function7() = runBlocking(pool) {
     coroutineScope {
-        val job6 = launch {
+        val job6 = launch(pool) {
             manager4.channel5.send(manager3.channel3.receive())
         }
         job6.invokeOnCompletion {
@@ -135,17 +137,22 @@ fun function7() = runBlocking {
 }
 
 fun main(): Unit{
-    runBlocking {
-        launch { function5() }
-        launch { function6() }
-        launch { function1() }
-        launch { function2() }
-        launch { function3() }
-        launch { function4() }
-        launch { function7() }
+    runBlocking(pool) {
+        launch(pool) { function5() }
+        launch(pool) { function6() }
+        launch(pool) { function1() }
+        launch(pool) { function2() }
+        launch(pool) { function3() }
+        launch(pool) { function4() }
+        launch(pool) { function7() }
     }
 }
 
 class RunChecker297: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,14 +36,16 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test524
+import org.example.altered.test524.RunChecker524.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class ClassA {
     val channelA = Channel<Int>()
     fun sendToChannelA(value: Int) {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             channelA.send(value)
         }
     }
@@ -56,7 +58,7 @@ class ClassA {
 class ClassB {
     val channelB = Channel<String>()
     fun sendToChannelB(value: String) {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             channelB.send(value)
         }
     }
@@ -69,7 +71,7 @@ class ClassB {
 class ClassC {
     val channelC = Channel<Double>()
     fun sendToChannelC(value: Double) {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             channelC.send(value)
         }
     }
@@ -105,7 +107,7 @@ suspend fun coroFuncC(c: ClassC, a: ClassA, b: ClassB, c3: Channel<Boolean>) {
     c3.send(true)
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val a = ClassA()
     val b = ClassB()
     val c = ClassC()
@@ -113,15 +115,15 @@ fun main(): Unit= runBlocking {
     val channelBCompleted = Channel<Boolean>()
     val channelCCompleted = Channel<Boolean>()
 
-    launch {
+    launch(pool) {
         coroFuncA(a, channelACompleted)
     }
 
-    launch {
+    launch(pool) {
         coroFuncB(b, channelBCompleted)
     }
 
-    launch {
+    launch(pool) {
         coroFuncC(c, a, b, channelCCompleted)
     }
 
@@ -131,5 +133,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker524: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

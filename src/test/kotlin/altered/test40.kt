@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test40
+import org.example.altered.test40.RunChecker40.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -95,7 +97,7 @@ class Finalizer(private val channel: Channel<Int>) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel = Channel<Int>(10)
 
     val processor = Processor(channel)
@@ -106,15 +108,20 @@ fun main(): Unit= runBlocking {
     val logger = Logger(channel)
     val finalizer = Finalizer(channel)
 
-    launch { producer.produce() }
-    launch { processor.process(5) }
-    launch { transformer.transform() }
-    launch { logger.log() }
-    launch { consumer.consume() }
-    launch { finalizer.finalize() }
-    launch { println("Aggregated sum: ${aggregator.aggregate()}") }
+    launch(pool) { producer.produce() }
+    launch(pool) { processor.process(5) }
+    launch(pool) { transformer.transform() }
+    launch(pool) { logger.log() }
+    launch(pool) { consumer.consume() }
+    launch(pool) { finalizer.finalize() }
+    launch(pool) { println("Aggregated sum: ${aggregator.aggregate()}") }
 }
 
 class RunChecker40: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

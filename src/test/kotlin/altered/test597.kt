@@ -36,43 +36,50 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test597
+import org.example.altered.test597.RunChecker597.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
-fun functionA(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
-    launch {
+fun functionA(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val value = channel1.receive()
         channel2.send(value)
     }
 }
 
-fun functionB(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking {
-    launch {
+fun functionB(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val value = channel2.receive()
         channel3.send(value)
     }
 }
 
-fun functionC(channel3: Channel<Int>, channel1: Channel<Int>) = runBlocking {
-    launch {
+fun functionC(channel3: Channel<Int>, channel1: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         val value = channel3.receive()
         channel1.send(value)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
 
-    launch { functionA(channel1, channel2) }
-    launch { functionB(channel2, channel3) }
-    launch { functionC(channel3, channel1) }
+    launch(pool) { functionA(channel1, channel2) }
+    launch(pool) { functionB(channel2, channel3) }
+    launch(pool) { functionC(channel3, channel1) }
 
     channel1.send(42) // Initial value to kickstart the chain.
 }
 
 class RunChecker597: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

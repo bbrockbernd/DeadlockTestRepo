@@ -36,18 +36,20 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test580
+import org.example.altered.test580.RunChecker580.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class ProducerA(val channelA: Channel<Int>, val channelB: Channel<String>) {
     fun produceValues() {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             for (i in 1..5) {
                 channelA.send(i)
             }
         }
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             for (i in 1..5) {
                 channelB.send("A$i")
             }
@@ -57,12 +59,12 @@ class ProducerA(val channelA: Channel<Int>, val channelB: Channel<String>) {
 
 class ProducerB(val channelA: Channel<Int>, val channelB: Channel<String>) {
     fun produceOtherValues() {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             for (i in 6..10) {
                 channelA.send(i)
             }
         }
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             for (i in 6..10) {
                 channelB.send("B$i")
             }
@@ -72,12 +74,12 @@ class ProducerB(val channelA: Channel<Int>, val channelB: Channel<String>) {
 
 class Consumer(val channelA: Channel<Int>, val channelB: Channel<String>) {
     fun consume() {
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             repeat(10) {
                 println("Received from Channel A: ${channelA.receive()}")
             }
         }
-        GlobalScope.launch {
+        GlobalScope.launch(pool) {
             repeat(10) {
                 println("Received from Channel B: ${channelB.receive()}")
             }
@@ -85,7 +87,7 @@ class Consumer(val channelA: Channel<Int>, val channelB: Channel<String>) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<String>()
 
@@ -101,5 +103,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker580: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

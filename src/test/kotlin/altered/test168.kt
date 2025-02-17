@@ -35,27 +35,29 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test168
+import org.example.altered.test168.RunChecker168.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 fun function1(channel1: Channel<Int>, channel2: Channel<Int>, channel3: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 channel1.send(it * 2)
             }
             channel1.close()
         }
 
-        launch {
+        launch(pool) {
             for (value in channel1) {
                 channel2.send(value + 1)
             }
             channel2.close()
         }
 
-        launch {
+        launch(pool) {
             for (value in channel2) {
                 channel3.send(value * 3)
             }
@@ -65,8 +67,8 @@ fun function1(channel1: Channel<Int>, channel2: Channel<Int>, channel3: Channel<
 }
 
 fun function2(channel4: Channel<Int>, channel5: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             for (value in channel4) {
                 channel5.send(value * 2)
             }
@@ -76,15 +78,15 @@ fun function2(channel4: Channel<Int>, channel5: Channel<Int>) {
 }
 
 fun function3(channel6: Channel<Int>, channel7: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel6.send(1)
             channel6.send(2)
             channel6.send(3)
             channel6.close()
         }
 
-        launch {
+        launch(pool) {
             for (value in channel6) {
                 channel7.send(value * 10)
             }
@@ -94,20 +96,20 @@ fun function3(channel6: Channel<Int>, channel7: Channel<Int>) {
 }
 
 fun function4(channel3: Channel<Int>, channel5: Channel<Int>, channel7: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             for (value in channel3) {
                 println("From channel3: $value")
             }
         }
 
-        launch {
+        launch(pool) {
             for (value in channel5) {
                 println("From channel5: $value")
             }
         }
 
-        launch {
+        launch(pool) {
             for (value in channel7) {
                 println("From channel7: $value")
             }
@@ -131,5 +133,10 @@ fun main(): Unit{
 }
 
 class RunChecker168: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

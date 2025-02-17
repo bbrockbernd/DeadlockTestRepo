@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test865
+import org.example.altered.test865.RunChecker865.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,8 +47,8 @@ class FirstClass {
     val channel2 = Channel<String>()
 
     fun firstFunction() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 for (i in 1..5) {
                     channel1.send(i)
                 }
@@ -60,8 +62,8 @@ class SecondClass {
     val channel4 = Channel<String>()
 
     fun secondFunction(channel: Channel<Int>) {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 repeat(5) {
                     val received = channel.receive()
                     channel3.send(received * 2)
@@ -73,8 +75,8 @@ class SecondClass {
 
 class ThirdClass {
     fun thirdFunction(channelIn: Channel<Int>, channelOut: Channel<String>) {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 repeat(5) {
                     val received = channelIn.receive()
                     channelOut.send("Received: $received")
@@ -84,8 +86,8 @@ class ThirdClass {
     }
 
     fun fourthFunction(channel: Channel<String>, channelOut: Channel<String>) {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 repeat(5) {
                     val received = channel.receive()
                     channelOut.send(received.reversed())
@@ -96,8 +98,8 @@ class ThirdClass {
 }
 
 fun fifthFunction(channel: Channel<String>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(5) {
                 println(channel.receive())
             }
@@ -118,5 +120,10 @@ fun main(): Unit{
 }
 
 class RunChecker865: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

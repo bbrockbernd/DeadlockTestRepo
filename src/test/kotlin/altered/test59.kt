@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test59
+import org.example.altered.test59.RunChecker59.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,8 +47,8 @@ class C(val ch3: Channel<Int>)
 class D(val ch4: Channel<Int>)
 class E(val ch1: Channel<Int>, val ch2: Channel<Int>, val ch3: Channel<Int>, val ch4: Channel<Int>)
 
-fun FunctionA(a: A) = runBlocking {
-    launch {
+fun FunctionA(a: A) = runBlocking(pool) {
+    launch(pool) {
         a.ch1.send(1)
         println("Sent 1 to ch1")
         val received = a.ch1.receive()
@@ -54,8 +56,8 @@ fun FunctionA(a: A) = runBlocking {
     }
 }
 
-fun FunctionB(b: B) = runBlocking {
-    launch {
+fun FunctionB(b: B) = runBlocking(pool) {
+    launch(pool) {
         b.ch2.send(2)
         println("Sent 2 to ch2")
         val received = b.ch2.receive()
@@ -63,8 +65,8 @@ fun FunctionB(b: B) = runBlocking {
     }
 }
 
-fun FunctionC(e: E) = runBlocking {
-    launch {
+fun FunctionC(e: E) = runBlocking(pool) {
+    launch(pool) {
         e.ch4.send(4)
         println("Sent 4 to ch4")
         val received = e.ch4.receive()
@@ -84,35 +86,35 @@ fun main(): Unit = runBlocking<Unit> {
     val d = D(ch4)
     val e = E(ch1, ch2, ch3, ch4)
 
-    launch { 
+    launch(pool) { 
         FunctionA(a) 
     }
-    launch { 
+    launch(pool) { 
         FunctionB(b) 
     }
-    launch { 
+    launch(pool) { 
         FunctionC(e) 
     }
     
-    launch {
+    launch(pool) {
         val received = e.ch1.receive()
         println("Received $received from ch1 in main coroutine")
         e.ch2.send(received + 1)
     }
     
-    launch {
+    launch(pool) {
         val received = e.ch2.receive()
         println("Received $received from ch2 in main coroutine")
         e.ch3.send(received + 1)
     }
 
-    launch {
+    launch(pool) {
         val received = e.ch3.receive()
         println("Received $received from ch3 in main coroutine")
         e.ch4.send(received + 1)
     }
     
-    launch {
+    launch(pool) {
         val received = e.ch4.receive()
         println("Received $received from ch4 in main coroutine")
         e.ch1.send(received + 1)
@@ -122,5 +124,10 @@ fun main(): Unit = runBlocking<Unit> {
 }
 
 class RunChecker59: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

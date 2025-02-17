@@ -36,11 +36,13 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test949
+import org.example.altered.test949.RunChecker949.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 
 class Sensor(val id: Int, private val channel: Channel<Int>) {
     suspend fun produceData() {
@@ -77,34 +79,39 @@ class Aggregator(private val channel: Channel<Boolean>) {
 suspend fun sensorCoroutines(channels: List<Channel<Int>>) = coroutineScope {
     for (i in channels.indices) {
         val sensor = Sensor(i + 1, channels[i])
-        launch { sensor.produceData() }
+        launch(pool) { sensor.produceData() }
     }
 }
 
 suspend fun processorCoroutines(inputChannels: List<Channel<Int>>, outputChannel: Channel<Boolean>) = coroutineScope {
     for (inputChannel in inputChannels) {
         val processor = Processor(inputChannel, outputChannel)
-        launch { processor.processData() }
+        launch(pool) { processor.processData() }
     }
 }
 
 suspend fun aggregatorCoroutine(channel: Channel<Boolean>) = coroutineScope {
     val aggregator = Aggregator(channel)
-    launch { aggregator.aggregateData() }
+    launch(pool) { aggregator.aggregateData() }
 }
 
 suspend fun startCoroutines() = coroutineScope {
     val channels = listOf(Channel<Int>(), Channel<Int>(), Channel<Int>(), Channel<Int>())
     val boolChannel = Channel<Boolean>()
-    launch { sensorCoroutines(channels) }
-    launch { processorCoroutines(channels, boolChannel) }
-    launch { aggregatorCoroutine(boolChannel) }
+    launch(pool) { sensorCoroutines(channels) }
+    launch(pool) { processorCoroutines(channels, boolChannel) }
+    launch(pool) { aggregatorCoroutine(boolChannel) }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     startCoroutines()
 }
 
 class RunChecker949: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

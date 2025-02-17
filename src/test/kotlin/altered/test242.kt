@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test242
+import org.example.altered.test242.RunChecker242.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -43,52 +45,52 @@ class ClassA(val ch1: Channel<Int>, val ch2: Channel<Int>)
 class ClassB(val ch3: Channel<Int>, val ch4: Channel<Int>)
 class ClassC(val ch5: Channel<Int>)
 
-fun function1(a: ClassA) = runBlocking {
-    launch {
+fun function1(a: ClassA) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..5) {
             a.ch1.send(i)
         }
     }
 }
 
-fun function2(a: ClassA) = runBlocking {
-    launch {
+fun function2(a: ClassA) = runBlocking(pool) {
+    launch(pool) {
         repeat(5) {
             println("Received in function2: ${a.ch1.receive()}")
         }
     }
 }
 
-fun function3(b: ClassB) = runBlocking {
-    launch {
+fun function3(b: ClassB) = runBlocking(pool) {
+    launch(pool) {
         for (i in 6..10) {
             b.ch3.send(i)
         }
     }
 }
 
-fun function4(b: ClassB) = runBlocking {
-    launch {
+fun function4(b: ClassB) = runBlocking(pool) {
+    launch(pool) {
         repeat(5) {
             println("Received in function4: ${b.ch3.receive()}")
         }
     }
 }
 
-fun function5(c: ClassC) = runBlocking {
-    launch {
+fun function5(c: ClassC) = runBlocking(pool) {
+    launch(pool) {
         c.ch5.send(11)
     }
 }
 
-fun function6(c: ClassC) = runBlocking {
-    launch {
+fun function6(c: ClassC) = runBlocking(pool) {
+    launch(pool) {
         println("Received in function6: ${c.ch5.receive()}")
     }
 }
 
-fun function7(ch5: Channel<Int>, a: ClassA, b: ClassB) = runBlocking {
-    launch {
+fun function7(ch5: Channel<Int>, a: ClassA, b: ClassB) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..3) {
             a.ch2.send(i + 10)
         }
@@ -97,8 +99,8 @@ fun function7(ch5: Channel<Int>, a: ClassA, b: ClassB) = runBlocking {
     }
 }
 
-fun function8(ch5: Channel<Int>, b: ClassB, c: ClassC) = runBlocking {
-    launch {
+fun function8(ch5: Channel<Int>, b: ClassB, c: ClassC) = runBlocking(pool) {
+    launch(pool) {
         val receivedB = b.ch4.receive()
         c.ch5.send(receivedB)
         println("Forwarded in function8: ${ch5.receive()}")
@@ -116,32 +118,37 @@ val b = ClassB(ch3, ch4)
 val c = ClassC(ch5)
 
 fun main(): Unit= runBlocking<Unit> {
-    launch {
+    launch(pool) {
         function1(a)
     }
-    launch {
+    launch(pool) {
         function2(a)
     }
-    launch {
+    launch(pool) {
         function3(b)
     }
-    launch {
+    launch(pool) {
         function4(b)
     }
-    launch {
+    launch(pool) {
         function5(c)
     }
-    launch {
+    launch(pool) {
         function6(c)
     }
-    launch {
+    launch(pool) {
         function7(ch5, a, b)
     }
-    launch {
+    launch(pool) {
         function8(ch5, b, c)
     }
 }
 
 class RunChecker242: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test538
+import org.example.altered.test538.RunChecker538.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -48,32 +50,32 @@ class Processor(val input1: Channel<Int>, val input2: Channel<Int>, val output: 
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelA = Channel<Int>(1)
     val channelB = Channel<Int>(1)
     val channelC = Channel<Int>(1)
     val channelD = Channel<Int>(1)
     val channelE = Channel<Int>(1)
 
-    fun coroutine1(channel1: Channel<Int>, channel2: Channel<Int>) = launch {
+    fun coroutine1(channel1: Channel<Int>, channel2: Channel<Int>) = launch(pool) {
         channel1.send(1)
         val value = channel2.receive()
         println("Coroutine1 received: $value")
     }
 
-    fun coroutine2(channel1: Channel<Int>, channel2: Channel<Int>) = launch {
+    fun coroutine2(channel1: Channel<Int>, channel2: Channel<Int>) = launch(pool) {
         val value = channel1.receive()
         channel2.send(value)
         println("Coroutine2 sent: $value")
     }
 
-    fun coroutine3(processor: Processor) = launch {
+    fun coroutine3(processor: Processor) = launch(pool) {
         processor.process()
         val output = processor.output.receive()
         println("Coroutine3 processed: $output")
     }
 
-    fun coroutine4(channel: Channel<Int>) = launch {
+    fun coroutine4(channel: Channel<Int>) = launch(pool) {
         val value = channel.receive()
         println("Coroutine4 received: $value")
     }
@@ -88,5 +90,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker538: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

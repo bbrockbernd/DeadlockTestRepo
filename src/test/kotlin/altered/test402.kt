@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test402
+import org.example.altered.test402.RunChecker402.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -47,19 +49,19 @@ class Worker(val name: String, val inputChannel: ReceiveChannel<Int>, val output
     }
 }
 
-fun CoroutineScope.worker1(input: ReceiveChannel<Int>, output: SendChannel<Int>) = launch {
+fun CoroutineScope.worker1(input: ReceiveChannel<Int>, output: SendChannel<Int>) = launch(pool) {
     for (i in input) {
         output.send(i + 1)
     }
 }
 
-fun CoroutineScope.worker2(input: ReceiveChannel<Int>, output: SendChannel<Int>) = launch {
+fun CoroutineScope.worker2(input: ReceiveChannel<Int>, output: SendChannel<Int>) = launch(pool) {
     for (i in input) {
         output.send(i * 3)
     }
 }
 
-fun CoroutineScope.worker3(input: ReceiveChannel<Int>, additionalInput: ReceiveChannel<Int>, output: SendChannel<Int>) = launch {
+fun CoroutineScope.worker3(input: ReceiveChannel<Int>, additionalInput: ReceiveChannel<Int>, output: SendChannel<Int>) = launch(pool) {
     for (i in input) {
         output.send(i + additionalInput.receive())
     }
@@ -73,21 +75,21 @@ fun createChannels(): List<Channel<Int>> {
     return channels
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channels = createChannels()
 
     worker1(channels[0], channels[1])
     worker2(channels[2], channels[3])
     
     val worker = Worker("CustomWorker", channels[4], channels[5])
-    launch {
+    launch(pool) {
         worker.process()
     }
 
     worker3(channels[1], channels[3], channels[6])
 
     // Send values to start the processing
-    launch {
+    launch(pool) {
         channels[0].send(1)
         channels[2].send(2)
         channels[4].send(3)
@@ -99,7 +101,7 @@ fun main(): Unit= runBlocking {
     }
 
     // Printing the final output
-    launch {
+    launch(pool) {
         for (result in channels[6]) {
             println("Final result: $result")
         }
@@ -110,5 +112,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker402: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test443
+import org.example.altered.test443.RunChecker443.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -55,53 +57,58 @@ class ProcessorD {
     val channelD = Channel<Int>(1)
 }
 
-fun processAtoB(processorA: ProcessorA, processorB: ProcessorB) = runBlocking {
+fun processAtoB(processorA: ProcessorA, processorB: ProcessorB) = runBlocking(pool) {
     processorA.channelA.send(1)
     processorB.channelB.receive()
 }
 
-fun processBtoC(processorB: ProcessorB, processorC: ProcessorC) = runBlocking {
+fun processBtoC(processorB: ProcessorB, processorC: ProcessorC) = runBlocking(pool) {
     processorB.channelB.send(2)
     processorC.channelC.receive()
 }
 
-fun processCtoD(processorC: ProcessorC, processorD: ProcessorD) = runBlocking {
+fun processCtoD(processorC: ProcessorC, processorD: ProcessorD) = runBlocking(pool) {
     processorC.channelC.send(3)
     processorD.channelD.receive()
 }
 
-fun processDtoA(processorD: ProcessorD, processorA: ProcessorA) = runBlocking {
+fun processDtoA(processorD: ProcessorD, processorA: ProcessorA) = runBlocking(pool) {
     processorD.channelD.send(4)
     processorA.channelA.receive()
 }
 
-fun coroutineExample1(processorA: ProcessorA, processorB: ProcessorB) = runBlocking {
-    launch {
+fun coroutineExample1(processorA: ProcessorA, processorB: ProcessorB) = runBlocking(pool) {
+    launch(pool) {
         processAtoB(processorA, processorB)
     }
 }
 
-fun coroutineExample2(processorB: ProcessorB, processorC: ProcessorC, processorD: ProcessorD, processorA: ProcessorA) = runBlocking {
-    launch {
+fun coroutineExample2(processorB: ProcessorB, processorC: ProcessorC, processorD: ProcessorD, processorA: ProcessorA) = runBlocking(pool) {
+    launch(pool) {
         processBtoC(processorB, processorC)
         processDtoA(processorD, processorA)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val processorA = ProcessorA()
     val processorB = ProcessorB()
     val processorC = ProcessorC()
     val processorD = ProcessorD()
 
-    launch { coroutineExample1(processorA, processorB) }
-    launch { processCtoD(processorC, processorD) }
-    launch { processAtoB(processorA, processorB) }
-    launch { coroutineExample2(processorB, processorC, processorD, processorA) }
-    launch { processBtoC(processorB, processorC) }
-    launch { processDtoA(processorD, processorA) }
+    launch(pool) { coroutineExample1(processorA, processorB) }
+    launch(pool) { processCtoD(processorC, processorD) }
+    launch(pool) { processAtoB(processorA, processorB) }
+    launch(pool) { coroutineExample2(processorB, processorC, processorD, processorA) }
+    launch(pool) { processBtoC(processorB, processorC) }
+    launch(pool) { processDtoA(processorD, processorA) }
 }
 
 class RunChecker443: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

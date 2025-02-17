@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test231
+import org.example.altered.test231.RunChecker231.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -84,17 +86,17 @@ suspend fun intermediateTwo(inputChannel: ReceiveChannel<Int>, outputChannel: Se
 }
 
 // Function 7
-fun startCoroutines(channelA: Channel<Int>, channelB: Channel<Int>) = runBlocking {
-    launch { producerOne(channelA) }
-    launch { consumerOne(channelB) }
-    launch { intermediateOne(channelA, channelB) }
+fun startCoroutines(channelA: Channel<Int>, channelB: Channel<Int>) = runBlocking(pool) {
+    launch(pool) { producerOne(channelA) }
+    launch(pool) { consumerOne(channelB) }
+    launch(pool) { intermediateOne(channelA, channelB) }
 }
 
 // Function 8
-fun startAdditionalCoroutines(channelC: Channel<Int>, channelD: Channel<Int>) = runBlocking {
-    launch { producerTwo(channelC) }
-    launch { consumerTwo(channelD) }
-    launch { intermediateTwo(channelC, channelD) }
+fun startAdditionalCoroutines(channelC: Channel<Int>, channelD: Channel<Int>) = runBlocking(pool) {
+    launch(pool) { producerTwo(channelC) }
+    launch(pool) { consumerTwo(channelD) }
+    launch(pool) { intermediateTwo(channelC, channelD) }
 }
 
 fun main(): Unit{
@@ -103,7 +105,7 @@ fun main(): Unit{
     val channelC = Channel<Int>()
     val channelD = Channel<Int>()
 
-    runBlocking {
+    runBlocking(pool) {
         startCoroutines(channelA, channelB)
         delay(1000) // Allow some time for the first set to proceed
         startAdditionalCoroutines(channelC, channelD)
@@ -111,5 +113,10 @@ fun main(): Unit{
 }
 
 class RunChecker231: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

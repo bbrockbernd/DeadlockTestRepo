@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test501
+import org.example.altered.test501.RunChecker501.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -56,7 +58,7 @@ class Consumer(val channel1: Channel<Int>, val channel2: Channel<String>) {
 }
 
 fun sendToThirdChannel(channel3: Channel<Pair<Int, String>>, data: Pair<Int, String>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         channel3.send(data)
     }
 }
@@ -67,7 +69,7 @@ suspend fun processThirdChannel(channel3: Channel<Pair<Int, String>>, channel4: 
     channel5.send(receivedData.second)
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<String>()
     val channel3 = Channel<Pair<Int, String>>()
@@ -77,30 +79,35 @@ fun main(): Unit= runBlocking {
     val producer = Producer(channel1, channel2)
     val consumer = Consumer(channel1, channel2)
 
-    launch {
+    launch(pool) {
         producer.produceData()
     }
 
-    launch {
+    launch(pool) {
         val data = consumer.consumeData()
         sendToThirdChannel(channel3, data)
     }
 
-    launch {
+    launch(pool) {
         processThirdChannel(channel3, channel4, channel5)
     }
 
-    launch {
+    launch(pool) {
         val finalData1 = channel4.receive()
         println("Final Data from Channel 4: $finalData1")
     }
 
-    launch {
+    launch(pool) {
         val finalData2 = channel5.receive()
         println("Final Data from Channel 5: $finalData2")
     }
 }
 
 class RunChecker501: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

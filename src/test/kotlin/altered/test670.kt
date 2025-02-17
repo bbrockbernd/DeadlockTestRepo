@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test670
+import org.example.altered.test670.RunChecker670.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -44,33 +46,33 @@ class A(val channel1: Channel<Int>, val channel2: Channel<Int>)
 class B(val channel3: Channel<Int>)
 class C(val channel4: Channel<Int>)
 
-fun function1(a: A, b: B) = runBlocking {
-    launch {
+fun function1(a: A, b: B) = runBlocking(pool) {
+    launch(pool) {
         val received1 = a.channel1.receive()
         b.channel3.send(received1)
         val received2 = a.channel2.receive()
         b.channel3.send(received2)
     }
     
-    launch {
+    launch(pool) {
         val data = b.channel3.receive()
         a.channel2.send(data)
     }
 }
 
-fun function2(b: B, c: C) = runBlocking {
-    launch {
+fun function2(b: B, c: C) = runBlocking(pool) {
+    launch(pool) {
         val data = b.channel3.receive()
         c.channel4.send(data)
     }
     
-    launch {
+    launch(pool) {
         val received = c.channel4.receive()
         b.channel3.send(received)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>(1)
@@ -80,19 +82,24 @@ fun main(): Unit= runBlocking {
     val b = B(channel3)
     val c = C(channel4)
     
-    launch {
+    launch(pool) {
         function1(a, b)
     }
     
-    launch {
+    launch(pool) {
         function2(b, c)
     }
     
-    launch {
+    launch(pool) {
         a.channel1.send(42)
     }
 }
 
 class RunChecker670: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test468
+import org.example.altered.test468.RunChecker468.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,31 +47,31 @@ class Class3(val ch3: Channel<Double>)
 class Class4(val ch4: Channel<Boolean>)
 class Class5
 
-fun function1(ch1: Channel<Int>, ch2: Channel<String>, ch3: Channel<Double>) = runBlocking {
-    launch {
+fun function1(ch1: Channel<Int>, ch2: Channel<String>, ch3: Channel<Double>) = runBlocking(pool) {
+    launch(pool) {
         val value1 = ch1.receive()
         println("Received from ch1: $value1")
         ch2.send("Hello")
     }
-    launch {
+    launch(pool) {
         val value2 = ch3.receive()
         println("Received from ch3: $value2")
     }
 }
 
-fun function2(ch2: Channel<String>, ch4: Channel<Boolean>, ch3: Channel<Double>) = runBlocking {
-    launch {
+fun function2(ch2: Channel<String>, ch4: Channel<Boolean>, ch3: Channel<Double>) = runBlocking(pool) {
+    launch(pool) {
         val value1 = ch2.receive()
         println("Received from ch2: $value1")
         ch4.send(true)
     }
-    launch {
+    launch(pool) {
         ch3.send(42.0)
         println("Sent to ch3: 42.0")
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val ch1 = Channel<Int>()
     val ch2 = Channel<String>()
     val ch3 = Channel<Double>()
@@ -81,17 +83,22 @@ fun main(): Unit= runBlocking {
     val obj4 = Class4(ch4)
     val obj5 = Class5()
 
-    launch {
+    launch(pool) {
         ch1.send(100)
         println("Sent to ch1: 100")
         function1(obj1.ch1, obj2.ch2, obj3.ch3)
     }
 
-    launch {
+    launch(pool) {
         function2(obj2.ch2, obj4.ch4, obj3.ch3)
     }
 }
 
 class RunChecker468: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

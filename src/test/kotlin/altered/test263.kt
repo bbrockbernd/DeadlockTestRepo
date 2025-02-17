@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test263
+import org.example.altered.test263.RunChecker263.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -56,7 +58,7 @@ class Producer2(private val channel: Channel<Int>) {
 }
 
 fun consume1(channel: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         repeat(3) {
             println("Consume1 received: ${channel.receive()}")
         }
@@ -64,7 +66,7 @@ fun consume1(channel: Channel<Int>) {
 }
 
 fun consume2(channel: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         repeat(3) {
             println("Consume2 received: ${channel.receive()}")
         }
@@ -72,7 +74,7 @@ fun consume2(channel: Channel<Int>) {
 }
 
 fun bridgeChannels(channel1: Channel<Int>, channel2: Channel<Int>, channel3: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         repeat(3) {
             val value1 = channel1.receive()
             channel3.send(value1)
@@ -83,7 +85,7 @@ fun bridgeChannels(channel1: Channel<Int>, channel2: Channel<Int>, channel3: Cha
 }
 
 fun consumeFinal(channel: Channel<Int>) {
-    runBlocking {
+    runBlocking(pool) {
         repeat(6) {
             println("Final Consumer received: ${channel.receive()}")
         }
@@ -92,8 +94,8 @@ fun consumeFinal(channel: Channel<Int>) {
 
 suspend fun startProducers(producer1: Producer1, producer2: Producer2) {
     coroutineScope {
-        launch { producer1.produce1() }
-        launch { producer2.produce2() }
+        launch(pool) { producer1.produce1() }
+        launch(pool) { producer2.produce2() }
     }
 }
 
@@ -104,15 +106,20 @@ fun main(): Unit{
     val producer1 = Producer1(channel1)
     val producer2 = Producer2(channel2)
 
-    runBlocking {
-        launch { startProducers(producer1, producer2) }
-        launch { bridgeChannels(channel1, channel2, channel3) }
-        launch { consume1(channel1) }
-        launch { consume2(channel2) }
-        launch { consumeFinal(channel3) }
+    runBlocking(pool) {
+        launch(pool) { startProducers(producer1, producer2) }
+        launch(pool) { bridgeChannels(channel1, channel2, channel3) }
+        launch(pool) { consume1(channel1) }
+        launch(pool) { consume2(channel2) }
+        launch(pool) { consumeFinal(channel3) }
     }
 }
 
 class RunChecker263: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test442
+import org.example.altered.test442.RunChecker442.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -61,14 +63,14 @@ class Middleman(val channel: Channel<Int>) {
     suspend fun mediate() {
         val tempChannel = Channel<Int>()
         coroutineScope {
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val value = channel.receive()
                     println("Mediating $value")
                     tempChannel.send(value)
                 }
             }
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val value = tempChannel.receive()
                     println("Mediated $value")
@@ -88,37 +90,42 @@ class Controller(val channel: Channel<Int>) {
     }
 }
 
-fun producerFunc(producer: Producer) = runBlocking {
+fun producerFunc(producer: Producer) = runBlocking(pool) {
     producer.produce()
 }
 
-fun consumerFunc(consumer: Consumer) = runBlocking {
+fun consumerFunc(consumer: Consumer) = runBlocking(pool) {
     consumer.consume()
 }
 
-fun middlemanFunc(middleman: Middleman) = runBlocking {
+fun middlemanFunc(middleman: Middleman) = runBlocking(pool) {
     middleman.mediate()
 }
 
-fun controllerFunc(controller: Controller) = runBlocking {
+fun controllerFunc(controller: Controller) = runBlocking(pool) {
     controller.control()
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channel = Channel<Int>()
     val producer = Producer(channel)
     val consumer = Consumer(channel)
     val middleman = Middleman(channel)
     val controller = Controller(channel)
 
-    launch { producerFunc(producer) }
-    launch { middlemanFunc(middleman) }
-    launch { controllerFunc(controller) }
-    launch { consumerFunc(consumer) }
+    launch(pool) { producerFunc(producer) }
+    launch(pool) { middlemanFunc(middleman) }
+    launch(pool) { controllerFunc(controller) }
+    launch(pool) { consumerFunc(consumer) }
 
     delay(2000)
 }
 
 class RunChecker442: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

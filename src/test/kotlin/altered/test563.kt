@@ -36,25 +36,27 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test563
+import org.example.altered.test563.RunChecker563.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class Producer {
-    fun produce(channel: Channel<Int>) = runBlocking {
+    fun produce(channel: Channel<Int>) = runBlocking(pool) {
         channel.send(1) // This will get stuck waiting as the buffer is full
     }
 }
 
 class Consumer {
-    fun consume(channel: Channel<Int>) = runBlocking {
+    fun consume(channel: Channel<Int>) = runBlocking(pool) {
         channel.receive() // This will get stuck waiting for an element to consume
     }
 }
 
 suspend fun functionOne(channel: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             Producer().produce(channel)
         }
     }
@@ -62,7 +64,7 @@ suspend fun functionOne(channel: Channel<Int>) {
 
 suspend fun functionTwo(channel: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             Consumer().consume(channel)
         }
     }
@@ -70,14 +72,19 @@ suspend fun functionTwo(channel: Channel<Int>) {
 
 fun main(): Unit{
     val channel = Channel<Int>() // Unbuffered channel
-    runBlocking {
-        launch { functionOne(channel) }
-        launch { functionTwo(channel) }
-        launch { functionOne(channel) }
-        launch { functionTwo(channel) }
+    runBlocking(pool) {
+        launch(pool) { functionOne(channel) }
+        launch(pool) { functionTwo(channel) }
+        launch(pool) { functionOne(channel) }
+        launch(pool) { functionTwo(channel) }
     }
 }
 
 class RunChecker563: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test503
+import org.example.altered.test503.RunChecker503.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -47,7 +49,7 @@ val channel4 = Channel<Int>()
 val channel5 = Channel<Int>()
 
 fun CoroutineScope.coroutine1() {
-    launch {
+    launch(pool) {
         delay(100)
         channel1.send(1)
         println("coroutine1 sent 1")
@@ -57,7 +59,7 @@ fun CoroutineScope.coroutine1() {
 }
 
 fun CoroutineScope.coroutine2() {
-    launch {
+    launch(pool) {
         delay(200)
         val received = channel1.receive()
         println("coroutine2 received $received")
@@ -67,7 +69,7 @@ fun CoroutineScope.coroutine2() {
 }
 
 fun CoroutineScope.coroutine3() {
-    launch {
+    launch(pool) {
         delay(300)
         val received = channel3.receive()
         println("coroutine3 received $received")
@@ -77,7 +79,7 @@ fun CoroutineScope.coroutine3() {
 }
 
 fun CoroutineScope.coroutine4() {
-    launch {
+    launch(pool) {
         delay(400)
         val received = channel4.receive()
         println("coroutine4 received $received")
@@ -87,7 +89,7 @@ fun CoroutineScope.coroutine4() {
 }
 
 fun CoroutineScope.coroutine5() {
-    launch {
+    launch(pool) {
         delay(500)
         val received = channel5.receive()
         println("coroutine5 received $received")
@@ -96,7 +98,7 @@ fun CoroutineScope.coroutine5() {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     coroutine1()
     coroutine2()
     coroutine3()
@@ -107,5 +109,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker503: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

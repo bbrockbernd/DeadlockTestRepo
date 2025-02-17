@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test181
+import org.example.altered.test181.RunChecker181.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -57,8 +59,8 @@ fun createChannels(): List<Channel<Any>> {
 }
 
 fun dataProducer(channel: Channel<String>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel.send("Data 1")
             channel.send("Data 2")
             channel.send("Data 3")
@@ -67,8 +69,8 @@ fun dataProducer(channel: Channel<String>) {
 }
 
 fun dataConsumer(channel: Channel<String>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(3) {
                 println(channel.receive())
             }
@@ -77,8 +79,8 @@ fun dataConsumer(channel: Channel<String>) {
 }
 
 fun processProducer(channel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             channel.send(1)
             channel.send(2)
             channel.send(3)
@@ -87,8 +89,8 @@ fun processProducer(channel: Channel<Int>) {
 }
 
 fun processConsumer(channel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(3) {
                 println(channel.receive())
             }
@@ -101,8 +103,8 @@ fun combineChannels(
     processChannel: Channel<Int>,
     combinedChannel: Channel<Any>
 ) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(3) {
                 combinedChannel.send(dataChannel.receive())
                 combinedChannel.send(processChannel.receive())
@@ -112,8 +114,8 @@ fun combineChannels(
 }
 
 fun consumeCombined(combinedChannel: Channel<Any>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             repeat(6) {
                 println(combinedChannel.receive())
             }
@@ -144,5 +146,10 @@ fun main(): Unit {
 }
 
 class RunChecker181: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

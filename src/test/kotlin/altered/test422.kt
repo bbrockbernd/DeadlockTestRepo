@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test422
+import org.example.altered.test422.RunChecker422.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -58,16 +60,16 @@ class Consumer(val ch1: Channel<Int>, val ch2: Channel<Int>) {
 }
 
 fun intermediateFunction(ch3: Channel<Int>, ch4: Channel<Int>, ch5: Channel<Int>, ch6: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val temp = ch3.receive()
             ch4.send(temp)
         }
-        launch {
+        launch(pool) {
             val temp = ch4.receive()
             ch5.send(temp)
         }
-        launch {
+        launch(pool) {
             val temp = ch5.receive()
             ch6.send(temp)
         }
@@ -75,7 +77,7 @@ fun intermediateFunction(ch3: Channel<Int>, ch4: Channel<Int>, ch5: Channel<Int>
 }
 
 fun main(): Unit{
-    runBlocking {
+    runBlocking(pool) {
         val ch1 = Channel<Int>()
         val ch2 = Channel<Int>()
         val ch3 = Channel<Int>()
@@ -87,27 +89,27 @@ fun main(): Unit{
         val producer = Producer(ch1, ch2)
         val consumer = Consumer(ch3, ch4)
 
-        launch { producer.produce() }
-        launch {
+        launch(pool) { producer.produce() }
+        launch(pool) {
             repeat(3) {
                 val x = ch1.receive()
                 ch3.send(x)
             }
         }
 
-        launch { intermediateFunction(ch3, ch4, ch5, ch6) }
+        launch(pool) { intermediateFunction(ch3, ch4, ch5, ch6) }
 
-        launch {
+        launch(pool) {
             repeat(3) {
                 val y = ch5.receive()
                 ch7.send(y)
             }
         }
 
-        launch { consumer.consume() }
+        launch(pool) { consumer.consume() }
 
         repeat(3) {
-            launch {
+            launch(pool) {
                 val z = ch6.receive()
                 println("Received: $z")
             }
@@ -116,5 +118,10 @@ fun main(): Unit{
 }
 
 class RunChecker422: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test209
+import org.example.altered.test209.RunChecker209.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -51,7 +53,7 @@ val channel6 = Channel<Int>()
 val channel7 = Channel<Int>()
 
 fun processA1(processor: ProcessorA) {
-    runBlocking {
+    runBlocking(pool) {
         while (true) {
             val value = processor.input.receive()
             processor.output.send(value)
@@ -60,7 +62,7 @@ fun processA1(processor: ProcessorA) {
 }
 
 fun processA2(processor: ProcessorA) {
-    runBlocking {
+    runBlocking(pool) {
         while (true) {
             val value = processor.input.receive()
             processor.output.send(value * 2)
@@ -69,7 +71,7 @@ fun processA2(processor: ProcessorA) {
 }
 
 fun processB1(processor: ProcessorB) {
-    runBlocking {
+    runBlocking(pool) {
         while (true) {
             val value = processor.input.receive()
             processor.output.send(value / 2)
@@ -78,15 +80,15 @@ fun processB1(processor: ProcessorB) {
 }
 
 fun initiateProcessing() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val processorA1 = ProcessorA(channel1, channel2)
             val processorA2 = ProcessorA(channel3, channel4)
             val processorB1 = ProcessorB(channel5, channel6)
 
-            launch { processA1(processorA1) }
-            launch { processA2(processorA2) }
-            launch { processB1(processorB1) }
+            launch(pool) { processA1(processorA1) }
+            launch(pool) { processA2(processorA2) }
+            launch(pool) { processB1(processorB1) }
 
             channel1.send(10)
             channel4.send(20)
@@ -97,9 +99,9 @@ fun initiateProcessing() {
             channel7.send(channel5.receive())
         }
 
-        launch {
+        launch(pool) {
             val resultChannel = Channel<Int>()
-            launch {
+            launch(pool) {
                 val valueFromCh7 = channel7.receive()
                 resultChannel.send(valueFromCh7)
             }
@@ -114,5 +116,10 @@ fun main(): Unit{
 }
 
 class RunChecker209: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

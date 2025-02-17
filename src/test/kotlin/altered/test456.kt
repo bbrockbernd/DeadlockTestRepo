@@ -35,46 +35,48 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test456
+import org.example.altered.test456.RunChecker456.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel = Channel<Int>()
 
-    launch { 
+    launch(pool) { 
         coroutineFunction1(channel)
     }
-    launch { 
+    launch(pool) { 
         coroutineFunction2(channel)
     }
-    launch { 
+    launch(pool) { 
         coroutineFunction3(channel)
     }
-    launch { 
+    launch(pool) { 
         coroutineFunction4(channel)
     }
-    launch { 
+    launch(pool) { 
         coroutineFunction1(channel)
     }
-    launch { 
+    launch(pool) { 
         coroutineFunction2(channel)
     }
-    launch { 
+    launch(pool) { 
         coroutineFunction3(channel)
     }
-    launch { 
+    launch(pool) { 
         coroutineFunction4(channel)
     }
 }
 
 suspend fun coroutineFunction1(channel: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             channel.send(1)
         }
 
-        launch {
+        launch(pool) {
             channel.receive()
         }
     }
@@ -82,11 +84,11 @@ suspend fun coroutineFunction1(channel: Channel<Int>) {
 
 suspend fun coroutineFunction2(channel: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             channel.send(2)
         }
 
-        launch {
+        launch(pool) {
             channel.receive()
         }
     }
@@ -94,11 +96,11 @@ suspend fun coroutineFunction2(channel: Channel<Int>) {
 
 suspend fun coroutineFunction3(channel: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             channel.send(3)
         }
 
-        launch {
+        launch(pool) {
             channel.receive()
         }
     }
@@ -106,16 +108,21 @@ suspend fun coroutineFunction3(channel: Channel<Int>) {
 
 suspend fun coroutineFunction4(channel: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             channel.send(4)
         }
 
-        launch {
+        launch(pool) {
             channel.receive()
         }
     }
 }
 
 class RunChecker456: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

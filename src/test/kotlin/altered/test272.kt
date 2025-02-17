@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test272
+import org.example.altered.test272.RunChecker272.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -45,24 +47,24 @@ class ClassC(val channelE: Channel<Double>, val channelF: Channel<Double>)
 class ClassD(val channelG: Channel<Float>, val channelH: Channel<Float>)
 
 fun functionOne(channel: Channel<Int>, value: Int) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         channel.send(value)
     }
 }
 
 fun functionTwo(channel: Channel<String>, message: String) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         channel.send(message)
     }
 }
 
 fun functionThree(channel: Channel<Double>, value: Double) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         channel.send(value)
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
     val channelC = Channel<String>()
@@ -77,22 +79,22 @@ fun main(): Unit = runBlocking {
     val classC = ClassC(channelE, channelF)
     val classD = ClassD(channelG, channelH)
 
-    val job1 = launch {
+    val job1 = launch(pool) {
         val value = classA.channelA.receive()
         classB.channelC.send("Value from channelA: $value")
     }
 
-    val job2 = launch {
+    val job2 = launch(pool) {
         val message = classB.channelD.receive()
         classC.channelE.send(message.length.toDouble())
     }
 
-    val job3 = launch {
+    val job3 = launch(pool) {
         val doubleValue = classC.channelF.receive()
         classD.channelG.send(doubleValue.toFloat())
     }
 
-    val job4 = launch {
+    val job4 = launch(pool) {
         val floatValue = classD.channelH.receive()
         classA.channelB.send(floatValue.toInt())
     }
@@ -101,12 +103,12 @@ fun main(): Unit = runBlocking {
     functionTwo(classB.channelD, "Hello")
     functionThree(classC.channelF, 3.14)
 
-    launch {
+    launch(pool) {
         val received = classD.channelG.receive()
         println("Received from classD channelG: $received")
     }
 
-    launch {
+    launch(pool) {
         val received = classA.channelB.receive()
         println("Received from classA channelB: $received")
     }
@@ -118,5 +120,10 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker272: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

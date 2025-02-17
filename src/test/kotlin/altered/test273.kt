@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test273
+import org.example.altered.test273.RunChecker273.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -79,21 +81,26 @@ fun initProcessor(channel: Channel<Int>): Processor {
     return Processor(channel)
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel = Channel<Int>()  // Unbuffered channel
 
     val producer = initProducer(channel)
     val consumer = initConsumer(channel)
     val processor = initProcessor(channel)
 
-    launch { producer.produce() }
-    launch { processor.process() }
-    launch { consumer.consume() }
-    launch { processor.process() } // Duplicate process creation to cause deadlock
-    launch { consumer.consume() } // Duplicate consumer creation to cause deadlock
-    launch { producer.produce() } // Duplicate producer creation to cause deadlock
+    launch(pool) { producer.produce() }
+    launch(pool) { processor.process() }
+    launch(pool) { consumer.consume() }
+    launch(pool) { processor.process() } // Duplicate process creation to cause deadlock
+    launch(pool) { consumer.consume() } // Duplicate consumer creation to cause deadlock
+    launch(pool) { producer.produce() } // Duplicate producer creation to cause deadlock
 }
 
 class RunChecker273: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

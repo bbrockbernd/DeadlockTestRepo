@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test757
+import org.example.altered.test757.RunChecker757.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -47,13 +49,13 @@ class Coordinator {
     val channelD = Channel<Int>(10)
 }
 
-fun produceA(coordinator: Coordinator) = CoroutineScope(Dispatchers.Default).launch {
+fun produceA(coordinator: Coordinator) = CoroutineScope(pool).launch(pool) {
     for (i in 1..5) {
         coordinator.channelA.send(i)
     }
 }
 
-fun consumeA(coordinator: Coordinator) = CoroutineScope(Dispatchers.Default).launch {
+fun consumeA(coordinator: Coordinator) = CoroutineScope(pool).launch(pool) {
     repeat(5) {
         val value = coordinator.channelA.receive()
         coordinator.channelB.send(value * 2)
@@ -74,23 +76,23 @@ suspend fun transferCToD(coordinator: Coordinator) {
     }
 }
 
-fun consumeD(coordinator: Coordinator) = CoroutineScope(Dispatchers.Default).launch {
+fun consumeD(coordinator: Coordinator) = CoroutineScope(pool).launch(pool) {
     repeat(5) {
         println(coordinator.channelD.receive())
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val coordinator = Coordinator()
     
     produceA(coordinator)
     consumeA(coordinator)
     
-    launch {
+    launch(pool) {
         transferBToC(coordinator)
     }
     
-    launch {
+    launch(pool) {
         transferCToD(coordinator)
     }
 
@@ -98,5 +100,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker757: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

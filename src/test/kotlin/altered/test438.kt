@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test438
+import org.example.altered.test438.RunChecker438.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,59 +47,59 @@ class ChannelManager {
     val channel3 = Channel<Double>(5)
 }
 
-fun sendIntegers(channel: Channel<Int>, limit: Int) = runBlocking {
+fun sendIntegers(channel: Channel<Int>, limit: Int) = runBlocking(pool) {
     for (i in 1..limit) {
         channel.send(i)
     }
     channel.close()
 }
 
-fun sendStrings(channel: Channel<String>, words: List<String>) = runBlocking {
+fun sendStrings(channel: Channel<String>, words: List<String>) = runBlocking(pool) {
     for (word in words) {
         channel.send(word)
     }
     channel.close()
 }
 
-fun receiveIntegers(channel: Channel<Int>) = runBlocking {
+fun receiveIntegers(channel: Channel<Int>) = runBlocking(pool) {
     for (element in channel) {
         println("Received Integer: $element")
     }
 }
 
-fun receiveStrings(channel: Channel<String>) = runBlocking {
+fun receiveStrings(channel: Channel<String>) = runBlocking(pool) {
     for (element in channel) {
         println("Received String: $element")
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val manager = ChannelManager()
 
-    launch {
+    launch(pool) {
         sendIntegers(manager.channel1, 5)
     }
 
-    launch {
+    launch(pool) {
         sendStrings(manager.channel2, listOf("Kotlin", "Coroutines", "Channels"))
     }
 
-    launch {
+    launch(pool) {
         for (i in 1..5) {
             manager.channel3.send(i.toDouble())
         }
         manager.channel3.close()
     }
 
-    launch {
+    launch(pool) {
         receiveIntegers(manager.channel1)
     }
 
-    launch {
+    launch(pool) {
         receiveStrings(manager.channel2)
     }
 
-    launch {
+    launch(pool) {
         for (element in manager.channel3) {
             println("Received Double: $element")
         }
@@ -105,5 +107,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker438: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

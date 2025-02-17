@@ -35,12 +35,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test93
+import org.example.altered.test93.RunChecker93.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
-fun functionOne(chan1: Channel<Int>, chan2: Channel<Int>, chan3: Channel<String>, chan4: Channel<String>) = runBlocking {
-    launch {
+fun functionOne(chan1: Channel<Int>, chan2: Channel<Int>, chan3: Channel<String>, chan4: Channel<String>) = runBlocking(pool) {
+    launch(pool) {
         repeat(5) {
             chan1.send(it)
             println("Sent $it to chan1")
@@ -48,7 +50,7 @@ fun functionOne(chan1: Channel<Int>, chan2: Channel<Int>, chan3: Channel<String>
         chan1.close()
     }
 
-    launch {
+    launch(pool) {
         for (v in chan1) {
             chan2.send(v + 10)
             println("Sent ${v + 10} to chan2")
@@ -56,7 +58,7 @@ fun functionOne(chan1: Channel<Int>, chan2: Channel<Int>, chan3: Channel<String>
         chan2.close()
     }
 
-    launch {
+    launch(pool) {
         repeat(5) {
             chan3.send("one$it")
             println("Sent one$it to chan3")
@@ -64,7 +66,7 @@ fun functionOne(chan1: Channel<Int>, chan2: Channel<Int>, chan3: Channel<String>
         chan3.close()
     }
 
-    launch {
+    launch(pool) {
         for (v in chan3) {
             chan4.send(v + "X")
             println("Sent ${v}X to chan4")
@@ -73,8 +75,8 @@ fun functionOne(chan1: Channel<Int>, chan2: Channel<Int>, chan3: Channel<String>
     }
 }
 
-fun functionTwo(chan5: Channel<Int>, chan6: Channel<Int>, chan7: Channel<String>, chan8: Channel<String>) = runBlocking {
-    launch {
+fun functionTwo(chan5: Channel<Int>, chan6: Channel<Int>, chan7: Channel<String>, chan8: Channel<String>) = runBlocking(pool) {
+    launch(pool) {
         repeat(5) {
             chan5.send(it)
             println("Sent $it to chan5")
@@ -82,7 +84,7 @@ fun functionTwo(chan5: Channel<Int>, chan6: Channel<Int>, chan7: Channel<String>
         chan5.close()
     }
 
-    launch {
+    launch(pool) {
         for (v in chan5) {
             chan6.send(v * 2)
             println("Sent ${v * 2} to chan6")
@@ -90,7 +92,7 @@ fun functionTwo(chan5: Channel<Int>, chan6: Channel<Int>, chan7: Channel<String>
         chan6.close()
     }
 
-    launch {
+    launch(pool) {
         repeat(5) {
             chan7.send("two$it")
             println("Sent two$it to chan7")
@@ -98,7 +100,7 @@ fun functionTwo(chan5: Channel<Int>, chan6: Channel<Int>, chan7: Channel<String>
         chan7.close()
     }
 
-    launch {
+    launch(pool) {
         for (v in chan7) {
             chan8.send(v + "Y")
             println("Sent ${v}Y to chan8")
@@ -107,7 +109,7 @@ fun functionTwo(chan5: Channel<Int>, chan6: Channel<Int>, chan7: Channel<String>
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val chan1 = Channel<Int>()
     val chan2 = Channel<Int>()
     val chan3 = Channel<String>()
@@ -122,5 +124,10 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker93: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

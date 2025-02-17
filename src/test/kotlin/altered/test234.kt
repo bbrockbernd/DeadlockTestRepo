@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test234
+import org.example.altered.test234.RunChecker234.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -59,33 +61,38 @@ class Consumer(val ch1: ReceiveChannel<Int>, val ch2: ReceiveChannel<Int>) {
     }
 }
 
-fun produceInChannel(ch1: SendChannel<Int>, ch2: SendChannel<Int>) = runBlocking {
+fun produceInChannel(ch1: SendChannel<Int>, ch2: SendChannel<Int>) = runBlocking(pool) {
     val producer = Producer(ch1, ch2)
     producer.produce()
 }
 
-fun consumeInChannel(ch1: ReceiveChannel<Int>, ch2: ReceiveChannel<Int>) = runBlocking {
+fun consumeInChannel(ch1: ReceiveChannel<Int>, ch2: ReceiveChannel<Int>) = runBlocking(pool) {
     val consumer = Consumer(ch1, ch2)
     consumer.consume()
 }
 
-fun separateProcessing(ch: ReceiveChannel<Int>) = runBlocking {
+fun separateProcessing(ch: ReceiveChannel<Int>) = runBlocking(pool) {
     for (i in 1..5) {
         println("Separate Processing: ${ch.receive()}")
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val ch1 = Channel<Int>(5)
     val ch2 = Channel<Int>(5)
     val ch3 = Channel<Int>(5)
     val ch4 = Channel<Int>(5)
 
-    launch { produceInChannel(ch1, ch2) }
-    launch { consumeInChannel(ch1, ch2) }
-    launch { separateProcessing(ch3) }
+    launch(pool) { produceInChannel(ch1, ch2) }
+    launch(pool) { consumeInChannel(ch1, ch2) }
+    launch(pool) { separateProcessing(ch3) }
 }
 
 class RunChecker234: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

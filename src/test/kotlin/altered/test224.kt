@@ -35,19 +35,21 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test224
+import org.example.altered.test224.RunChecker224.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class Producer(val channel1: Channel<Int>, val channel2: Channel<String>) {
     fun produce() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 for (i in 1..5) {
                     channel1.send(i)
                 }
             }
-            launch {
+            launch(pool) {
                 val nums = arrayOf("One", "Two", "Three", "Four", "Five")
                 for (num in nums.indices) {
                     channel2.send(nums[num])
@@ -59,14 +61,14 @@ class Producer(val channel1: Channel<Int>, val channel2: Channel<String>) {
 
 class Consumer1(val channel1: Channel<Int>, val channel2: Channel<String>) {
     fun consume() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 while (true) {
                     val value = channel1.receive()
                     println("Consumer1 received: $value")
                 }
             }
-            launch {
+            launch(pool) {
                 while (true) {
                     val value = channel2.receive()
                     println("Consumer1 received: $value")
@@ -78,14 +80,14 @@ class Consumer1(val channel1: Channel<Int>, val channel2: Channel<String>) {
 
 class Consumer2(val channel1: Channel<Int>, val channel2: Channel<String>) {
     fun consume() {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 while (true) {
                     val value = channel1.receive()
                     println("Consumer2 received: $value")
                 }
             }
-            launch {
+            launch(pool) {
                 while (true) {
                     val value = channel2.receive()
                     println("Consumer2 received: $value")
@@ -122,5 +124,10 @@ fun main(): Unit {
 }
 
 class RunChecker224: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

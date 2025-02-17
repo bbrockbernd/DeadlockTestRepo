@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test337
+import org.example.altered.test337.RunChecker337.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -60,22 +62,22 @@ suspend fun processData(channelExample: ChannelExample, data: Int) {
     println("Processed data: $receivedData")
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val myChannel = Channel<Int>()
     val channelExample = ChannelExample(myChannel)
 
-    launch { processData(channelExample, 1) }
-    launch { processData(channelExample, 2) }
-    launch { processData(channelExample, 3) }
-    launch { processData(channelExample, 4) }
-    launch { processData(channelExample, 5) }
-    launch { processData(channelExample, 6) }
-    launch { processData(channelExample, 7) }
-    launch { processData(channelExample, 8) }
+    launch(pool) { processData(channelExample, 1) }
+    launch(pool) { processData(channelExample, 2) }
+    launch(pool) { processData(channelExample, 3) }
+    launch(pool) { processData(channelExample, 4) }
+    launch(pool) { processData(channelExample, 5) }
+    launch(pool) { processData(channelExample, 6) }
+    launch(pool) { processData(channelExample, 7) }
+    launch(pool) { processData(channelExample, 8) }
 
     coroutineScope {
         repeat(8) {
-            launch {
+            launch(pool) {
                 val data = myChannel.receive()
                 myChannel.send(data + 1)
             }
@@ -85,5 +87,10 @@ fun main(): Unit= runBlocking {
 
 
 class RunChecker337: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

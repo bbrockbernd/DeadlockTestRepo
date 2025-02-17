@@ -35,50 +35,52 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test362
+import org.example.altered.test362.RunChecker362.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
-fun producer1(channel: SendChannel<Int>) = GlobalScope.launch {
+fun producer1(channel: SendChannel<Int>) = GlobalScope.launch(pool) {
     for (i in 1..5) {
         channel.send(i)
     }
     channel.close()
 }
 
-fun producer2(channel: SendChannel<Int>) = GlobalScope.launch {
+fun producer2(channel: SendChannel<Int>) = GlobalScope.launch(pool) {
     for (i in 6..10) {
         channel.send(i)
     }
     channel.close()
 }
 
-fun consumer1(channel: ReceiveChannel<Int>) = GlobalScope.launch {
+fun consumer1(channel: ReceiveChannel<Int>) = GlobalScope.launch(pool) {
     for (i in channel) {
         println("Consumer1 received: $i")
     }
 }
 
-fun consumer2(channel: ReceiveChannel<Int>) = GlobalScope.launch {
+fun consumer2(channel: ReceiveChannel<Int>) = GlobalScope.launch(pool) {
     for (i in channel) {
         println("Consumer2 received: $i")
     }
 }
 
-fun controller(channel1: ReceiveChannel<Int>, channel2: ReceiveChannel<Int>, outputChannel: SendChannel<Int>) = GlobalScope.launch {
-    launch {
+fun controller(channel1: ReceiveChannel<Int>, channel2: ReceiveChannel<Int>, outputChannel: SendChannel<Int>) = GlobalScope.launch(pool) {
+    launch(pool) {
         for (i in channel1) {
             outputChannel.send(i)
         }
     }
-    launch {
+    launch(pool) {
         for (i in channel2) {
             outputChannel.send(i)
         }
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
     val channelC = Channel<Int>()
@@ -92,12 +94,12 @@ fun main(): Unit = runBlocking {
 
     controller(channelA, channelB, channelC)
 
-    launch { 
+    launch(pool) { 
         for (i in channelC) {
             channelD.send(i)
         }
     }
-    launch { 
+    launch(pool) { 
         for (i in channelD) {
             channelE.send(i)
         }
@@ -110,5 +112,10 @@ fun main(): Unit = runBlocking {
 }
 
 class RunChecker362: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

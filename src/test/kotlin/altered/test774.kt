@@ -36,16 +36,18 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test774
+import org.example.altered.test774.RunChecker774.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel = Channel<Int>()
 
-    launch { producer(channel) }
-    launch { consumer1(channel) }
-    launch { consumer2(channel) }
+    launch(pool) { producer(channel) }
+    launch(pool) { consumer1(channel) }
+    launch(pool) { consumer2(channel) }
 
     delay(1000L)
 }
@@ -78,5 +80,10 @@ suspend fun additionalProcessing(value: Int) {
 }
 
 class RunChecker774: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

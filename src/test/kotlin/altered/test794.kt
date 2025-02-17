@@ -36,14 +36,16 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test794
+import org.example.altered.test794.RunChecker794.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class ProcessorA(val channelA: Channel<Int>, val channelB: Channel<Int>) {
     suspend fun process() {
         coroutineScope {
-            launch {
+            launch(pool) {
                 val result = channelA.receive()
                 channelB.send(result * 2)
             }
@@ -54,7 +56,7 @@ class ProcessorA(val channelA: Channel<Int>, val channelB: Channel<Int>) {
 class ProcessorB(val channelA: Channel<Int>, val channelB: Channel<Int>) {
     suspend fun process() {
         coroutineScope {
-            launch {
+            launch(pool) {
                 val result = channelB.receive()
                 channelA.send(result + 3)
             }
@@ -65,7 +67,7 @@ class ProcessorB(val channelA: Channel<Int>, val channelB: Channel<Int>) {
 class ProcessorC(val channelA: Channel<Int>, val channelB: Channel<Int>) {
     suspend fun process() {
         coroutineScope {
-            launch {
+            launch(pool) {
                 val result = channelA.receive()
                 channelB.send(result - 1)
             }
@@ -73,10 +75,10 @@ class ProcessorC(val channelA: Channel<Int>, val channelB: Channel<Int>) {
     }
 }
 
-fun runTest(processorA: ProcessorA, processorB: ProcessorB, processorC: ProcessorC) = runBlocking {
-    val jobA = launch { processorA.process() }
-    val jobB = launch { processorB.process() }
-    val jobC = launch { processorC.process() }
+fun runTest(processorA: ProcessorA, processorB: ProcessorB, processorC: ProcessorC) = runBlocking(pool) {
+    val jobA = launch(pool) { processorA.process() }
+    val jobB = launch(pool) { processorB.process() }
+    val jobC = launch(pool) { processorC.process() }
 
     jobA.join()
     jobB.join()
@@ -95,5 +97,10 @@ fun main(): Unit{
 }
 
 class RunChecker794: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

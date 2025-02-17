@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test870
+import org.example.altered.test870.RunChecker870.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -53,36 +55,36 @@ class Consumer(val ch: Channel<Int>) {
 }
 
 class Coordinator(val producer: Producer, val consumer: Consumer) {
-    fun coordinate() = runBlocking {
-        launch { producer.produce() }
-        launch { consumer.consume() }
+    fun coordinate() = runBlocking(pool) {
+        launch(pool) { producer.produce() }
+        launch(pool) { consumer.consume() }
     }
 }
 
-fun deadlockPart1(channel: Channel<Int>) = runBlocking {
+fun deadlockPart1(channel: Channel<Int>) = runBlocking(pool) {
     coroutineScope {
-        launch {
+        launch(pool) {
             channel.send(2)
         }
 
-        launch {
+        launch(pool) {
             channel.receive()
         }
 
-        launch {
+        launch(pool) {
             channel.send(3)
         }
     }
     channel.receive()
 }
 
-fun deadlockPart2(channel: Channel<Int>) = runBlocking {
+fun deadlockPart2(channel: Channel<Int>) = runBlocking(pool) {
     coroutineScope {
-        launch {
+        launch(pool) {
             channel.receive()
         }
 
-        launch {
+        launch(pool) {
             channel.send(4)
         }
     }
@@ -101,5 +103,10 @@ fun main(): Unit{
 }
 
 class RunChecker870: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test243
+import org.example.altered.test243.RunChecker243.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -63,18 +65,18 @@ fun mainFunction() {
     val producer = Producer(firstChannel)
     val consumer = Consumer(secondChannel)
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             producer.produce() // Suspends to send values to firstChannel
             secondChannel.send(firstChannel.receive()) // Deadlock point: This suspends waiting for a value from firstChannel, which producer has not sent yet as it is blocked.
         }
 
-        launch {
+        launch(pool) {
             consumer.consume() // Suspends waiting to receive from secondChannel
             thirdChannel.send(secondChannel.receive()) // Deadlock point: This suspends waiting for a value from secondChannel 
         }
 
-        launch {
+        launch(pool) {
             println(thirdChannel.receive()) // Deadlock point: This suspends waiting to receive from thirdChannel
         }
     }
@@ -85,5 +87,10 @@ fun main(): Unit{
 }
 
 class RunChecker243: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

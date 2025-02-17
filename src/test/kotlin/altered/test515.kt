@@ -36,12 +36,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test515
+import org.example.altered.test515.RunChecker515.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 fun functionOne(channel: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         repeat(10) { 
             delay(100L)
             channel.send(it * it)
@@ -51,7 +53,7 @@ fun functionOne(channel: Channel<Int>) {
 }
 
 fun functionTwo(channel: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         for (received in channel) {
             println("Received: $received")
         }
@@ -60,7 +62,7 @@ fun functionTwo(channel: Channel<Int>) {
 
 suspend fun functionThree(channel: Channel<Int>) {
     coroutineScope {
-        launch {
+        launch(pool) {
             delay(50L)
             for (i in 1..5) {
                 val square = i * i
@@ -70,13 +72,13 @@ suspend fun functionThree(channel: Channel<Int>) {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel = Channel<Int>()
-    launch { functionOne(channel) }
-    launch { functionTwo(channel) }
-    launch { functionThree(channel) }
+    launch(pool) { functionOne(channel) }
+    launch(pool) { functionTwo(channel) }
+    launch(pool) { functionThree(channel) }
     coroutineScope {
-        launch {
+        launch(pool) {
             delay(700L)
             println("Finished work")
         }
@@ -84,5 +86,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker515: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

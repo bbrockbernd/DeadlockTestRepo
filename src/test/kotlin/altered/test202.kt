@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test202
+import org.example.altered.test202.RunChecker202.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -43,8 +45,8 @@ class ClassA(val channelA: Channel<Int>, val channelB: Channel<Int>)
 class ClassB(val channelC: Channel<Int>, val channelD: Channel<Int>)
 class ClassC(val channelE: Channel<Int>, val channelF: Channel<Int>, val channelG: Channel<Int>)
 
-fun function1(classA: ClassA, classB: ClassB) = runBlocking {
-    launch {
+fun function1(classA: ClassA, classB: ClassB) = runBlocking(pool) {
+    launch(pool) {
         classA.channelA.send(1)
         val received = classB.channelC.receive()
         println("Function1 received: $received")
@@ -66,14 +68,14 @@ suspend fun function3(classC: ClassC, classA: ClassA) {
     classC.channelF.send(received)
 }
 
-fun function4(classC: ClassC) = runBlocking {
+fun function4(classC: ClassC) = runBlocking(pool) {
     classC.channelG.send(4)
     val received = classC.channelF.receive()
     println("Function4 received: $received")
     classC.channelG.send(received)
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channelA = Channel<Int>()
     val channelB = Channel<Int>()
     val channelC = Channel<Int>()
@@ -86,12 +88,17 @@ fun main(): Unit = runBlocking {
     val classB = ClassB(channelC, channelD)
     val classC = ClassC(channelE, channelF, channelG)
 
-    launch { function1(classA, classB) }
-    launch { function2(classB, classC) }
-    launch { function3(classC, classA) }
+    launch(pool) { function1(classA, classB) }
+    launch(pool) { function2(classB, classC) }
+    launch(pool) { function3(classC, classA) }
     function4(classC)
 }
 
 class RunChecker202: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

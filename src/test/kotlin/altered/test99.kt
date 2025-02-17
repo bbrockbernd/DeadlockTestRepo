@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test99
+import org.example.altered.test99.RunChecker99.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -45,7 +47,7 @@ class ClassC(val channel5: Channel<Double>, val channel6: Channel<Double>)
 class ClassD(val value: Int)
 
 fun initClassA(classA: ClassA) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         classA.channel1.send(42)
         val receivedValue = classA.channel2.receive()
         println("ClassA received: $receivedValue")
@@ -53,7 +55,7 @@ fun initClassA(classA: ClassA) {
 }
 
 fun initClassB(classB: ClassB) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         classB.channel3.send("Hello")
         val receivedValue = classB.channel4.receive()
         println("ClassB received: $receivedValue")
@@ -61,14 +63,14 @@ fun initClassB(classB: ClassB) {
 }
 
 fun initClassC(classC: ClassC) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         classC.channel5.send(3.14)
         val receivedValue = classC.channel6.receive()
         println("ClassC received: $receivedValue")
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<String>()
@@ -86,22 +88,27 @@ fun main(): Unit= runBlocking {
     initClassB(classB)
     initClassC(classC)
 
-    launch {
+    launch(pool) {
         val receivedFromA = classA.channel1.receive()
         classA.channel2.send(receivedFromA * classD.value)
     }
 
-    launch {
+    launch(pool) {
         val receivedFromB = classB.channel3.receive()
         classB.channel4.send("$receivedFromB World")
     }
 
-    launch {
+    launch(pool) {
         val receivedFromC = classC.channel5.receive()
         classC.channel6.send(receivedFromC * 2)
     }
 }
 
 class RunChecker99: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -35,11 +35,13 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test418
+import org.example.altered.test418.RunChecker418.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -54,7 +56,7 @@ fun main(): Unit= runBlocking {
     delay(1000)
 }
 
-fun CoroutineScope.launchProducer1(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchProducer1(channel: Channel<Int>) = launch(pool) {
     for (i in 1..5) {
         channel.send(i)
         delay(100)
@@ -62,7 +64,7 @@ fun CoroutineScope.launchProducer1(channel: Channel<Int>) = launch {
     channel.close()
 }
 
-fun CoroutineScope.launchProducer2(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchProducer2(channel: Channel<Int>) = launch(pool) {
     for (i in 6..10) {
         channel.send(i)
         delay(150)
@@ -70,7 +72,7 @@ fun CoroutineScope.launchProducer2(channel: Channel<Int>) = launch {
     channel.close()
 }
 
-fun CoroutineScope.launchProducer3(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchProducer3(channel: Channel<Int>) = launch(pool) {
     for (i in 11..15) {
         channel.send(i)
         delay(200)
@@ -78,14 +80,14 @@ fun CoroutineScope.launchProducer3(channel: Channel<Int>) = launch {
     channel.close()
 }
 
-fun CoroutineScope.launchConsumer1(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchConsumer1(channel: Channel<Int>) = launch(pool) {
     for (x in channel) {
         println("Consumer1 received: $x")
         delay(50)
     }
 }
 
-fun CoroutineScope.launchConsumer2(channel: Channel<Int>) = launch {
+fun CoroutineScope.launchConsumer2(channel: Channel<Int>) = launch(pool) {
     for (x in channel) {
         println("Consumer2 received: $x")
         delay(75)
@@ -93,5 +95,10 @@ fun CoroutineScope.launchConsumer2(channel: Channel<Int>) = launch {
 }
 
 class RunChecker418: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

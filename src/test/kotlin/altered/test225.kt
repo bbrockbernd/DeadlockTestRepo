@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test225
+import org.example.altered.test225.RunChecker225.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -43,8 +45,8 @@ class Data
 
 class Processor1 {
     fun process(channel1: Channel<Data>, channel2: Channel<Data>) {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val data = channel1.receive() // Awaiting data from channel1
                 channel2.send(data) // Send the received data to channel2
             }
@@ -54,8 +56,8 @@ class Processor1 {
 
 class Processor2 {
     fun process(channel2: Channel<Data>, channel3: Channel<Data>) {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val data = channel2.receive() // Awaiting data from channel2
                 channel3.send(data) // Send the received data to channel3
             }
@@ -65,8 +67,8 @@ class Processor2 {
 
 class Processor3 {
     fun process(channel3: Channel<Data>, channel1: Channel<Data>) {
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 val data = channel3.receive() // Awaiting data from channel3
                 channel1.send(data) // Send the received data to channel1
             }
@@ -84,16 +86,16 @@ class DeadlockTest {
         val processor2 = Processor2()
         val processor3 = Processor3()
 
-        runBlocking {
-            launch {
+        runBlocking(pool) {
+            launch(pool) {
                 processor1.process(channel1, channel2)
             }
             
-            launch {
+            launch(pool) {
                 processor2.process(channel2, channel3)
             }
             
-            launch {
+            launch(pool) {
                 processor3.process(channel3, channel1)
             }
         }
@@ -106,5 +108,10 @@ fun main(): Unit{
 }
 
 class RunChecker225: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

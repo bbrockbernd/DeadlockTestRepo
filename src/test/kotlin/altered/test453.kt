@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test453
+import org.example.altered.test453.RunChecker453.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -65,8 +67,8 @@ class DataClassD
 
 fun function1(channelA: Channel<Int>, channelB: Channel<Int>) {
     val dataClassA = DataClassA(channelA, channelB)
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             dataClassA.sendDataToB(1)
         }
     }
@@ -74,8 +76,8 @@ fun function1(channelA: Channel<Int>, channelB: Channel<Int>) {
 
 fun function2(channelA: Channel<Int>, channelB: Channel<Int>) {
     val dataClassB = DataClassB(channelA, channelB)
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             dataClassB.receiveDataFromA()
         }
     }
@@ -83,8 +85,8 @@ fun function2(channelA: Channel<Int>, channelB: Channel<Int>) {
 
 fun function3(channelA: Channel<Int>, channelB: Channel<Int>) {
     val dataClassB = DataClassB(channelA, channelB)
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             dataClassB.sendDataToA(2)
         }
     }
@@ -92,24 +94,24 @@ fun function3(channelA: Channel<Int>, channelB: Channel<Int>) {
 
 fun function4(channelA: Channel<Int>, channelB: Channel<Int>) {
     val dataClassC = DataClassC(channelA, channelB)
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             dataClassC.receiveDataFromB()
         }
     }
 }
 
 fun function5(channelA: Channel<Int>, channelB: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             function6()
         }
     }
 }
 
 fun function6() {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             delay(1000L) // Just a delay for some operation
         }
     }
@@ -119,7 +121,7 @@ fun main(): Unit {
     val channelA = Channel<Int>(1) // Buffered channel to potentially avoid immediate deadlock
     val channelB = Channel<Int>(1) // Buffered channel to potentially avoid immediate deadlock
 
-    runBlocking {
+    runBlocking(pool) {
         function1(channelA, channelB)
         function2(channelA, channelB)
         function3(channelA, channelB)
@@ -130,5 +132,10 @@ fun main(): Unit {
 }
 
 class RunChecker453: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

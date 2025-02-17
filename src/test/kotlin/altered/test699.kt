@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test699
+import org.example.altered.test699.RunChecker699.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -66,13 +68,13 @@ suspend fun coroutineB(consumer: Consumer) {
     consumer.consume()
 }
 
-fun mainFunction() = runBlocking {
+fun mainFunction() = runBlocking(pool) {
     val channel = Channel<Int>()
     val producer = Producer(channel)
     val consumer = Consumer(channel)
     
-    launch { coroutineA(producer) }
-    launch { coroutineB(consumer) }
+    launch(pool) { coroutineA(producer) }
+    launch(pool) { coroutineB(consumer) }
 
     // This will create a deadlock since we're using an unbuffered channel
     // and both coroutines will get stuck waiting for each other.
@@ -83,5 +85,10 @@ fun main(): Unit{
 }
 
 class RunChecker699: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

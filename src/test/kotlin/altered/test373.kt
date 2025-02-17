@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test373
+import org.example.altered.test373.RunChecker373.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -65,7 +67,7 @@ class Mediator(val producer: Producer, val consumer: Consumer) {
         val channelA = Channel<Int>()
         val channelB = Channel<Int>()
 
-        launch {
+        launch(pool) {
             producer.produce()
             for (item in channelA) { 
                 channelB.send(item) 
@@ -73,7 +75,7 @@ class Mediator(val producer: Producer, val consumer: Consumer) {
             channelB.close()
         }
 
-        launch {
+        launch(pool) {
             for (item in channelB) {
                 consumer.consume()
                 channelA.send(item)
@@ -83,17 +85,22 @@ class Mediator(val producer: Producer, val consumer: Consumer) {
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val channel = Channel<Int>()
     val producer = Producer(channel)
     val consumer = Consumer(channel)
     val mediator = Mediator(producer, consumer)
     
-    launch {
+    launch(pool) {
         mediator.mediate()
     }
 }
 
 class RunChecker373: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

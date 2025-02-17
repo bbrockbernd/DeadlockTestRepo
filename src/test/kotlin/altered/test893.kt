@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test893
+import org.example.altered.test893.RunChecker893.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -53,27 +55,27 @@ class DataConsumer(val channel: Channel<Int>) {
 }
 
 fun channelOperation1(channel1: Channel<Int>, channel2: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         val value = channel1.receive()
         channel2.send(value * 2)
     }
 }
 
 fun channelOperation2(channel2: Channel<Int>, channel3: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         val value = channel2.receive()
         channel3.send(value + 1)
     }
 }
 
 suspend fun processChannels(channel1: Channel<Int>, channel3: Channel<Int>) {
-    GlobalScope.launch {
+    GlobalScope.launch(pool) {
         val value = channel3.receive()
         channel1.send(value / 2)
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -81,10 +83,10 @@ fun main(): Unit= runBlocking {
     val producer = DataProducer(channel1, 10)
     val consumer = DataConsumer(channel3)
 
-    launch { 
+    launch(pool) { 
         producer.produce() 
     }
-    launch { 
+    launch(pool) { 
         println(consumer.consume()) 
     }
 
@@ -96,5 +98,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker893: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

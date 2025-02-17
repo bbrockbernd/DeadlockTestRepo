@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test440
+import org.example.altered.test440.RunChecker440.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -46,7 +48,7 @@ class ChannelOperations {
     val channelD = Channel<Int>()
 
     fun startProducerA() {
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(pool).launch(pool) {
             for (i in 1..5) {
                 channelA.send(i)
                 println("Sent $i to channelA")
@@ -55,7 +57,7 @@ class ChannelOperations {
     }
 
     fun startProducerB() {
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(pool).launch(pool) {
             for (i in 1..5) {
                 channelB.send(i)
                 println("Sent $i to channelB")
@@ -64,7 +66,7 @@ class ChannelOperations {
     }
 
     fun startConsumerC() {
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(pool).launch(pool) {
             repeat(5) {
                 val value = channelA.receive()
                 channelC.send(value)
@@ -74,7 +76,7 @@ class ChannelOperations {
     }
 
     fun startConsumerD() {
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(pool).launch(pool) {
             repeat(5) {
                 val value = channelB.receive()
                 channelD.send(value)
@@ -85,12 +87,12 @@ class ChannelOperations {
 
     suspend fun startCombinedOperation() {
         coroutineScope {
-            launch { startProducerA() }
-            launch { startProducerB() }
-            launch { startConsumerC() }
-            launch { startConsumerD() }
+            launch(pool) { startProducerA() }
+            launch(pool) { startProducerB() }
+            launch(pool) { startConsumerC() }
+            launch(pool) { startConsumerD() }
 
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val value = channelC.receive()
                     channelA.send(value)
@@ -98,7 +100,7 @@ class ChannelOperations {
                 }
             }
 
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val value = channelD.receive()
                     channelB.send(value)
@@ -109,11 +111,16 @@ class ChannelOperations {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channelOps = ChannelOperations()
     channelOps.startCombinedOperation()
 }
 
 class RunChecker440: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

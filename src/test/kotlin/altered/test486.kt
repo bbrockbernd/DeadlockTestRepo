@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test486
+import org.example.altered.test486.RunChecker486.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -70,25 +72,25 @@ class Processor {
     }
 
     fun launchProcessing(scope: CoroutineScope) {
-        scope.launch {
+        scope.launch(pool) {
             channel5.send(true)
         }
-        scope.launch {
+        scope.launch(pool) {
             channel6.send(false)
         }
-        scope.launch {
+        scope.launch(pool) {
             processChannel1To2()
         }
-        scope.launch {
+        scope.launch(pool) {
             processChannel2To3()
         }
-        scope.launch {
+        scope.launch(pool) {
             processChannel3To4()
         }
     }
 
     suspend fun startProcessing() {
-        val scope = CoroutineScope(Dispatchers.Default)
+        val scope = CoroutineScope(pool)
         launchProcessing(scope)
         repeat(5) {
             channel1.send(it)
@@ -107,11 +109,16 @@ class Processor {
     }
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val processor = Processor()
     processor.processChannels()
 }
 
 class RunChecker486: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

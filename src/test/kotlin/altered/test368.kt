@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test368
+import org.example.altered.test368.RunChecker368.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -65,7 +67,7 @@ class Coordinator(
 
     suspend fun coordinate() {
         coroutineScope {
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val value1 = producerChannel1.receive()
                     val value2 = producerChannel2.receive()
@@ -74,7 +76,7 @@ class Coordinator(
                 consumerChannel1.close()
             }
 
-            launch {
+            launch(pool) {
                 repeat(5) {
                     val result = consumerChannel1.receive()
                     consumerChannel2.send(result * 2)
@@ -101,7 +103,7 @@ fun consumerFromChannel2(chan: Channel<Int>): Consumer {
     return Consumer(chan)
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val producerChannel1 = Channel<Int>()
     val producerChannel2 = Channel<Int>()
     val consumerChannel1 = Channel<Int>()
@@ -113,12 +115,17 @@ fun main(): Unit= runBlocking {
     
     val coordinator = Coordinator(producerChannel1, producerChannel2, consumerChannel1, consumerChannel2)
 
-    launch { producer1.produce() }
-    launch { producer2.produce() }
-    launch { coordinator.coordinate() }
-    launch { consumer1.consume() }
+    launch(pool) { producer1.produce() }
+    launch(pool) { producer2.produce() }
+    launch(pool) { coordinator.coordinate() }
+    launch(pool) { consumer1.consume() }
 }
 
 class RunChecker368: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

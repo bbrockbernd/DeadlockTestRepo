@@ -36,13 +36,15 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test569
+import org.example.altered.test569.RunChecker569.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 fun functionA(channel: Channel<Int>, nextChannel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val value = channel.receive()
             nextChannel.send(value + 1)
         }
@@ -50,8 +52,8 @@ fun functionA(channel: Channel<Int>, nextChannel: Channel<Int>) {
 }
 
 fun functionB(channel: Channel<Int>, nextChannel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val value = channel.receive()
             nextChannel.send(value + 2)
         }
@@ -59,8 +61,8 @@ fun functionB(channel: Channel<Int>, nextChannel: Channel<Int>) {
 }
 
 fun functionC(channel: Channel<Int>, nextChannel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val value = channel.receive()
             nextChannel.send(value + 3)
         }
@@ -68,8 +70,8 @@ fun functionC(channel: Channel<Int>, nextChannel: Channel<Int>) {
 }
 
 fun functionD(channel: Channel<Int>, nextChannel: Channel<Int>) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val value = channel.receive()
             nextChannel.send(value + 4)
         }
@@ -82,20 +84,25 @@ fun main(): Unit{
     val channel3 = Channel<Int>()
     val channel4 = Channel<Int>()
 
-    runBlocking {
+    runBlocking(pool) {
         // Creating coroutines
-        launch { functionA(channel1, channel2) }
-        launch { functionB(channel2, channel3) }
-        launch { functionC(channel3, channel4) }
-        launch { functionD(channel4, channel1) }
+        launch(pool) { functionA(channel1, channel2) }
+        launch(pool) { functionB(channel2, channel3) }
+        launch(pool) { functionC(channel3, channel4) }
+        launch(pool) { functionD(channel4, channel1) }
 
         // Starting the deadlock situation
-        launch {
+        launch(pool) {
             channel1.send(0)
         }
     }
 }
 
 class RunChecker569: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

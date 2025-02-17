@@ -35,12 +35,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test350
+import org.example.altered.test350.RunChecker350.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun function1(ch1: Channel<Int>, ch2: Channel<Int>) = runBlocking {
-    launch {
+fun function1(ch1: Channel<Int>, ch2: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         ch1.send(1)
         println("Sent 1 on ch1 from function1")
         ch2.receive()
@@ -48,8 +50,8 @@ fun function1(ch1: Channel<Int>, ch2: Channel<Int>) = runBlocking {
     }
 }
 
-fun function2(ch3: Channel<Int>, ch4: Channel<Int>) = runBlocking {
-    launch {
+fun function2(ch3: Channel<Int>, ch4: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         ch3.send(1)
         println("Sent 1 on ch3 from function2")
         ch4.receive()
@@ -57,8 +59,8 @@ fun function2(ch3: Channel<Int>, ch4: Channel<Int>) = runBlocking {
     }
 }
 
-fun function3(ch5: Channel<Int>, ch1: Channel<Int>, ch2: Channel<Int>, ch3: Channel<Int>, ch4: Channel<Int>) = runBlocking {
-    launch {
+fun function3(ch5: Channel<Int>, ch1: Channel<Int>, ch2: Channel<Int>, ch3: Channel<Int>, ch4: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         ch5.send(1)
         println("Sent 1 on ch5 from function3")
         ch1.receive()
@@ -70,24 +72,29 @@ fun function3(ch5: Channel<Int>, ch1: Channel<Int>, ch2: Channel<Int>, ch3: Chan
     }
 }
 
-fun main(): Unit = runBlocking {
+fun main(): Unit = runBlocking(pool) {
     val ch1 = Channel<Int>()
     val ch2 = Channel<Int>()
     val ch3 = Channel<Int>()
     val ch4 = Channel<Int>()
     val ch5 = Channel<Int>()
 
-    launch {
+    launch(pool) {
         function1(ch1, ch2)
     }
-    launch {
+    launch(pool) {
         function2(ch3, ch4)
     }
-    launch {
+    launch(pool) {
         function3(ch5, ch1, ch2, ch3, ch4)
     }
 }
 
 class RunChecker350: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test874
+import org.example.altered.test874.RunChecker874.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
@@ -61,8 +63,8 @@ suspend fun transformData(inputChannel: Channel<Int>, outputChannel: Channel<Str
 // Function 3: Function to initialize and use ExampleClass
 fun initializeExampleClass(inputChannel: Channel<Int>, outputChannel: Channel<String>) {
     val exampleClass = ExampleClass(inputChannel, outputChannel)
-    runBlocking {
-        launch { transformData(exampleClass.inputChannel, exampleClass.outputChannel) }
+    runBlocking(pool) {
+        launch(pool) { transformData(exampleClass.inputChannel, exampleClass.outputChannel) }
     }
 }
 
@@ -75,24 +77,29 @@ suspend fun printData(channel: Channel<String>) {
 
 // Main coroutine to initialize channels and coordinate the functions
 fun main(): Unit{
-    runBlocking {
+    runBlocking(pool) {
         val inputChannel1 = Channel<Int>()
         val outputChannel1 = Channel<String>()
         val inputChannel2 = Channel<Int>()
         val outputChannel2 = Channel<String>()
 
         // Launching coroutines
-        launch { sendData(inputChannel1) }
-        launch { initializeExampleClass(inputChannel1, outputChannel1) }
-        launch { printData(outputChannel1) }
+        launch(pool) { sendData(inputChannel1) }
+        launch(pool) { initializeExampleClass(inputChannel1, outputChannel1) }
+        launch(pool) { printData(outputChannel1) }
 
         // Using another set of channels for different operations
-        launch { sendData(inputChannel2) }
-        launch { transformData(inputChannel2, outputChannel2) }
-        launch { printData(outputChannel2) }
+        launch(pool) { sendData(inputChannel2) }
+        launch(pool) { transformData(inputChannel2, outputChannel2) }
+        launch(pool) { printData(outputChannel2) }
     }
 }
 
 class RunChecker874: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

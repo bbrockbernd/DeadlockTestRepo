@@ -35,53 +35,60 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test356
+import org.example.altered.test356.RunChecker356.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>(Channel.UNLIMITED)
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>(Channel.UNLIMITED)
     val channel4 = Channel<Int>()
 
-    launch { function1(channel1, channel2) }
-    launch { function2(channel2, channel3) }
-    launch { function3(channel3, channel4) }
-    launch { function4(channel4, channel1) }
-    launch { function5(channel1) }
-    launch { function6(channel2) }
-    launch { function6(channel4) }
+    launch(pool) { function1(channel1, channel2) }
+    launch(pool) { function2(channel2, channel3) }
+    launch(pool) { function3(channel3, channel4) }
+    launch(pool) { function4(channel4, channel1) }
+    launch(pool) { function5(channel1) }
+    launch(pool) { function6(channel2) }
+    launch(pool) { function6(channel4) }
 }
 
-fun function1(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking {
+fun function1(channel1: Channel<Int>, channel2: Channel<Int>) = runBlocking(pool) {
     val value = channel1.receive()
     channel2.send(value)
 }
 
-fun function2(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking {
+fun function2(channel2: Channel<Int>, channel3: Channel<Int>) = runBlocking(pool) {
     val value = channel2.receive()
     channel3.send(value)
 }
 
-fun function3(channel3: Channel<Int>, channel4: Channel<Int>) = runBlocking {
+fun function3(channel3: Channel<Int>, channel4: Channel<Int>) = runBlocking(pool) {
     val value = channel3.receive()
     channel4.send(value)
 }
 
-fun function4(channel4: Channel<Int>, channel1: Channel<Int>) = runBlocking {
+fun function4(channel4: Channel<Int>, channel1: Channel<Int>) = runBlocking(pool) {
     val value = channel4.receive()
     channel1.send(value)
 }
 
-fun function5(channel: Channel<Int>) = runBlocking {
+fun function5(channel: Channel<Int>) = runBlocking(pool) {
     // Some work, no sends or receives
 }
 
-fun function6(channel: Channel<Int>) = runBlocking {
+fun function6(channel: Channel<Int>) = runBlocking(pool) {
     // Some work, no sends or receives
 }
 
 class RunChecker356: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

@@ -36,7 +36,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test608
+import org.example.altered.test608.RunChecker608.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -62,8 +64,8 @@ class Worker(val processor: Processor) {
 }
 
 fun processInput(processor: Processor) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             while (true) {
                 val data = processor.inputChannel.receive()
                 println("Processing: $data")
@@ -77,29 +79,34 @@ fun main(): Unit{
     val processor = Processor()
     val worker = Worker(processor)
 
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             worker.sendData()
         }
 
-        launch {
+        launch(pool) {
             worker.receiveData()
         }
 
-        launch {
+        launch(pool) {
             processInput(processor)
         }
 
-        launch {
+        launch(pool) {
             worker.sendData()  // This will add more data to inputChannel and create potential deadlock
         }
 
-        launch {
+        launch(pool) {
             processInput(processor)  // This will try to process more data and cause a deadlock
         }
     }
 }
 
 class RunChecker608: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

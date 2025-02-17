@@ -35,12 +35,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test222
+import org.example.altered.test222.RunChecker222.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 class Worker1(val input: Channel<Int>, val output: Channel<Int>) {
-    fun process() = runBlocking {
+    fun process() = runBlocking(pool) {
         for (x in input) {
             output.send(x + 1)
         }
@@ -48,7 +50,7 @@ class Worker1(val input: Channel<Int>, val output: Channel<Int>) {
 }
 
 class Worker2(val input: Channel<Int>, val output: Channel<Int>) {
-    fun process() = runBlocking {
+    fun process() = runBlocking(pool) {
         for (x in input) {
             output.send(x * 2)
         }
@@ -56,15 +58,15 @@ class Worker2(val input: Channel<Int>, val output: Channel<Int>) {
 }
 
 class Worker3(val input: Channel<Int>, val output: Channel<Int>) {
-    fun process() = runBlocking {
+    fun process() = runBlocking(pool) {
         for (x in input) {
             output.send(x - 1)
         }
     }
 }
 
-fun producer(ch1: Channel<Int>, ch2: Channel<Int>) = runBlocking {
-    launch {
+fun producer(ch1: Channel<Int>, ch2: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..10) {
             ch1.send(i)
             ch2.send(i)
@@ -72,8 +74,8 @@ fun producer(ch1: Channel<Int>, ch2: Channel<Int>) = runBlocking {
     }
 }
 
-fun consumer(ch3: Channel<Int>, ch4: Channel<Int>, result: Channel<Int>) = runBlocking {
-    launch {
+fun consumer(ch3: Channel<Int>, ch4: Channel<Int>, result: Channel<Int>) = runBlocking(pool) {
+    launch(pool) {
         for (i in 1..10) {
             val a = ch3.receive()
             val b = ch4.receive()
@@ -83,16 +85,16 @@ fun consumer(ch3: Channel<Int>, ch4: Channel<Int>, result: Channel<Int>) = runBl
 }
 
 fun orchestrator(ch1: Channel<Int>, ch2: Channel<Int>, ch3: Channel<Int>, ch4: Channel<Int>, ch5: Channel<Int>, ch6: Channel<Int>,
-                 ch7: Channel<Int>, ch8: Channel<Int>) = runBlocking {
-    launch { Worker1(ch1, ch5).process() }
-    launch { Worker2(ch2, ch6).process() }
-    launch { Worker3(ch3, ch7).process() }
-    launch { producer(ch1, ch2) }
-    launch { consumer(ch5, ch6, ch4) }
-    launch { consumer(ch7, ch8, ch3) }
+                 ch7: Channel<Int>, ch8: Channel<Int>) = runBlocking(pool) {
+    launch(pool) { Worker1(ch1, ch5).process() }
+    launch(pool) { Worker2(ch2, ch6).process() }
+    launch(pool) { Worker3(ch3, ch7).process() }
+    launch(pool) { producer(ch1, ch2) }
+    launch(pool) { consumer(ch5, ch6, ch4) }
+    launch(pool) { consumer(ch7, ch8, ch3) }
 
     // This coroutine causes a potential deadlock because it's waiting for data in ch4 and ch8 that may never come
-    launch {
+    launch(pool) {
         for (i in 1..10) {
             val x = ch4.receive() // Waiting to receive from ch4
             val y = ch8.receive() // Waiting to receive from ch8
@@ -111,11 +113,16 @@ fun main(): Unit{
     val ch7 = Channel<Int>()
     val ch8 = Channel<Int>()
 
-    runBlocking {
+    runBlocking(pool) {
         orchestrator(ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8)
     }
 }
 
 class RunChecker222: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

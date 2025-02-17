@@ -36,12 +36,14 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test785
+import org.example.altered.test785.RunChecker785.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
 fun produceNumbers(channel: SendChannel<Int>, range: IntRange) {
-    CoroutineScope(Dispatchers.Default).launch {
+    CoroutineScope(pool).launch(pool) {
         for (i in range) {
             channel.send(i)
         }
@@ -65,7 +67,7 @@ suspend fun squareNumbers(inputChannel: ReceiveChannel<Int>, outputChannel: Send
     outputChannel.close()
 }
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
@@ -73,15 +75,15 @@ fun main(): Unit= runBlocking {
 
     produceNumbers(channel1, 1..10)
 
-    launch {
+    launch(pool) {
         filterEvenNumbers(channel1, channel2)
     }
 
-    launch {
+    launch(pool) {
         squareNumbers(channel2, channel3)
     }
     
-    launch {
+    launch(pool) {
         for (result in channel3) {
             channel4.send(result)
         }
@@ -94,5 +96,10 @@ fun main(): Unit= runBlocking {
 }
 
 class RunChecker785: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

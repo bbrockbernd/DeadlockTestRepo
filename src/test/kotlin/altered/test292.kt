@@ -35,7 +35,9 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test292
+import org.example.altered.test292.RunChecker292.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -50,41 +52,41 @@ class ChannelManager {
 }
 
 fun func1(manager: ChannelManager) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             manager.ch1.send(1)
         }
-        launch {
+        launch(pool) {
             println(manager.ch2.receive())
         }
     }
 }
 
 fun func2(manager: ChannelManager) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             manager.ch3.send(2)
         }
-        launch {
+        launch(pool) {
             println(manager.ch4.receive())
         }
     }
 }
 
 fun func3(manager: ChannelManager) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             manager.ch5.send(3)
         }
-        launch {
+        launch(pool) {
             println(manager.ch6.receive())
         }
     }
 }
 
 fun func4(manager: ChannelManager) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val data = manager.ch1.receive() + 4
             manager.ch7.send(data)
         }
@@ -92,8 +94,8 @@ fun func4(manager: ChannelManager) {
 }
 
 fun func5(manager: ChannelManager) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val data = manager.ch3.receive() + 5
             manager.ch2.send(data)
         }
@@ -101,8 +103,8 @@ fun func5(manager: ChannelManager) {
 }
 
 fun func6(manager: ChannelManager) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val data = manager.ch5.receive() + 6
             manager.ch4.send(data)
         }
@@ -110,8 +112,8 @@ fun func6(manager: ChannelManager) {
 }
 
 fun func7(manager: ChannelManager) {
-    runBlocking {
-        launch {
+    runBlocking(pool) {
+        launch(pool) {
             val data = manager.ch7.receive() + 7
             manager.ch6.send(data)
         }
@@ -120,17 +122,22 @@ fun func7(manager: ChannelManager) {
 
 fun main(): Unit{
     val manager = ChannelManager()
-    runBlocking {
-        launch { func1(manager) }
-        launch { func2(manager) }
-        launch { func3(manager) }
-        launch { func4(manager) }
-        launch { func5(manager) }
-        launch { func6(manager) }
-        launch { func7(manager) }
+    runBlocking(pool) {
+        launch(pool) { func1(manager) }
+        launch(pool) { func2(manager) }
+        launch(pool) { func3(manager) }
+        launch(pool) { func4(manager) }
+        launch(pool) { func5(manager) }
+        launch(pool) { func6(manager) }
+        launch(pool) { func7(manager) }
     }
 }
 
 class RunChecker292: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}

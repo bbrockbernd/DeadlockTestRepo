@@ -36,22 +36,24 @@ You ARE NOT ALLOWED to use more complex features like:
 - mutexes 
 */
 package org.example.altered.test788
+import org.example.altered.test788.RunChecker788.Companion.pool
 import org.example.altered.RunCheckerBase
+import java.util.concurrent.Executors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-fun main(): Unit= runBlocking {
+fun main(): Unit= runBlocking(pool) {
     val channel1 = Channel<Int>()
     val channel2 = Channel<Int>()
     val channel3 = Channel<Int>()
     val channel4 = Channel<Int>()
     val channel5 = Channel<Int>()
 
-    launch { coroutine1(channel1, channel2, channel3) }
-    launch { coroutine2(channel2, channel3, channel4) }
-    launch { coroutine3(channel1, channel5) }
-    launch { coroutine4(channel4, channel5) }
-    launch { coroutine5(channel3, channel5) }
+    launch(pool) { coroutine1(channel1, channel2, channel3) }
+    launch(pool) { coroutine2(channel2, channel3, channel4) }
+    launch(pool) { coroutine3(channel1, channel5) }
+    launch(pool) { coroutine4(channel4, channel5) }
+    launch(pool) { coroutine5(channel3, channel5) }
 
     // Start the deadlock
     channel1.send(1)
@@ -86,5 +88,10 @@ suspend fun coroutine5(channel3: Channel<Int>, channel5: Channel<Int>) {
 }
 
 class RunChecker788: RunCheckerBase() {
-    override fun block() = runBlocking { main() }
-}
+    companion object {
+        lateinit var pool: ExecutorCoroutineDispatcher
+    }
+    override fun block() {
+        pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+        runBlocking(pool) { main() }
+    }}
