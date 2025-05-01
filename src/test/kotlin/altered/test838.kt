@@ -100,4 +100,5 @@ class RunChecker838: RunCheckerBase() {
     override fun block() {
         pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
         runBlocking(pool) { main() }
+        pool.close()
     }}
