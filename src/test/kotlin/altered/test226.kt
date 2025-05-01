@@ -117,4 +117,5 @@ class RunChecker226: RunCheckerBase() {
         pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
         runBlocking(pool) { main() }
         pool.close()
-    }}
+    }
+}

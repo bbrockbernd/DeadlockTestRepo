@@ -99,4 +99,5 @@ class RunChecker665: RunCheckerBase() {
         pool = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
         runBlocking(pool) { main() }
         pool.close()
-    }}
+    }
+}
