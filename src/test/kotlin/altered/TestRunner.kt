@@ -12,6 +12,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
+val TIMEOUT = 30.seconds
+
 class TestRunner {
     
     @Test
@@ -86,7 +88,7 @@ private fun executeSingleTest(testNr: Int): TestResult {
     try {
         val output = process.inputStream.bufferedReader().use { it.readText() }
 
-        while (process.isAlive && mark.elapsedNow() < 30.seconds) {
+        while (process.isAlive && mark.elapsedNow() < TIMEOUT) {
             sleep(100)
         }
 
