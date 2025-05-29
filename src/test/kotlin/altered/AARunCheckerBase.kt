@@ -1,18 +1,11 @@
 package org.example.altered
 
-import org.jetbrains.kotlinx.lincheck.ExceptionResult
-import org.jetbrains.kotlinx.lincheck.ExperimentalModelCheckingAPI
-import org.jetbrains.kotlinx.lincheck.LincheckAssertionError
-import org.jetbrains.kotlinx.lincheck.execution.threadsResults
+import org.jetbrains.kotlinx.lincheck.Lincheck.runConcurrentTest
 import kotlin.test.Test
-import org.jetbrains.kotlinx.lincheck.runConcurrentTest
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.TimeSource
 
 
 abstract class RunCheckerBase {
     abstract fun block()
-    @OptIn(ExperimentalModelCheckingAPI::class)
     @Test
     fun GPMChecker() {
 //        val mark = TimeSource.Monotonic.markNow()
