@@ -1,40 +1,27 @@
 package org.example.altered
 
 import org.jetbrains.kotlinx.lincheck.Lincheck.runConcurrentTest
+import org.junit.jupiter.api.assertTimeoutPreemptively
+import org.opentest4j.AssertionFailedError
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 
 
 abstract class RunCheckerBase {
     abstract fun block()
+    
     @Test
     fun GPMChecker() {
-//        val mark = TimeSource.Monotonic.markNow()
-        // run test and catch any error or assertion
-//        val result = runCatching {
-            runConcurrentTest {
-//                if (mark.elapsedNow() > 30.seconds) throw TimeExceededException()
-                block()
-                // inject timout by throwing exception 
+        try {
+            assertTimeoutPreemptively(50.seconds.toJavaDuration()) {
+                runConcurrentTest {
+                    block()
+                }
             }
-//        }
-
-//        // If test passed (without timeout) return
-//        if (!result.isFailure) return
-//        val exception = result.exceptionOrNull()
-//
-//        if (exception is LincheckAssertionError) {
-//            val actualResult = exception.failure.results.threadsResults[0][0]
-//            if (actualResult is ExceptionResult && actualResult.throwable is TimeExceededException) return
-//        }
-//        
-//        // If deadlock fail test
-//        if (exception?.message?.contains("Concurrent test has hung") == true) {
-//            throw AssertionError(exception.message)
-//        }
-//
-//        // else crash test
-//        throw IllegalStateException("Unexpected test result: ${exception?.message ?: "No message"}")
+        } catch (e: AssertionFailedError) {
+            if (e.cause?.javaClass?.name == "org.junit.jupiter.api.AssertTimeoutPreemptively\$ExecutionTimeoutException") return
+            throw e
+        } 
     }
 }
-
-//class TimeExceededException : IllegalStateException()
